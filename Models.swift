@@ -6,10 +6,26 @@ struct User: Codable, Identifiable {
     let name: String
     let email: String
     let hasCompletedOnboarding: Int
-    var isOnboarded: Bool { hasCompletedOnboarding == 1 }
+
+    var isOnboarded: Bool { hasCompletedOnboarding != 0 }
     var firstName: String { name.components(separatedBy: " ").first ?? name }
     var initials: String {
         name.components(separatedBy: " ").compactMap { $0.first }.prefix(2).map(String.init).joined().uppercased()
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        email = try container.decode(String.self, forKey: .email)
+        // Server returns bool or int — handle both
+        if let intVal = try? container.decode(Int.self, forKey: .hasCompletedOnboarding) {
+            hasCompletedOnboarding = intVal
+        } else if let boolVal = try? container.decode(Bool.self, forKey: .hasCompletedOnboarding) {
+            hasCompletedOnboarding = boolVal ? 1 : 0
+        } else {
+            hasCompletedOnboarding = 0
+        }
     }
 }
 
