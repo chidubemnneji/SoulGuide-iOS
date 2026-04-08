@@ -151,3 +151,36 @@ struct OnboardingResponse: Codable {
     let success: Bool
     let message: String?
 }
+
+// MARK: - Stats
+struct UserStats: Codable {
+    let conversationCount: Int
+    let messageCount: Int
+    let currentStreak: Int
+    let longestStreak: Int
+}
+
+// MARK: - Journey
+struct JourneyEntry: Codable {
+    let completedAt: String?
+}
+
+struct JourneyResponse: Codable {
+    let success: Bool
+    let data: [JourneyEntry]?
+}
+
+// MARK: - Full Persona
+struct FullPersona: Codable {
+    let primaryStruggle: String?
+    let graceArchetype: String?
+    let transformationGoals: [String]?
+}
+
+let ARCHETYPE_DISPLAY: [String: (name: String, description: String)] = [
+    "wounded_seeker": ("Wounded Seeker", "Finding God through the pain"),
+    "eager_builder": ("Eager Builder", "Growing deliberately, day by day"),
+    "curious_explorer": ("Curious Explorer", "Following questions toward faith"),
+    "returning_prodigal": ("Returning Prodigal", "Coming home after time away"),
+    "struggling_saint": ("Struggling Saint", "Faithful despite the doubts"),
+]

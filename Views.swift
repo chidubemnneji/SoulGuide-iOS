@@ -662,6 +662,7 @@ struct HomeView: View {
     @State private var completedTaskIds: Set<String> = []
     @State private var unreadCount = 0
     @State private var persona: Persona?
+    @State private var completedDays: [String] = []
     @State private var showNotifications = false
     @State private var navigateToChat = false
     @State private var navigateToDevotional = false
@@ -672,9 +673,9 @@ struct HomeView: View {
     }
 
     var tasks: [(id: String, title: String, subtitle: String, duration: String)] {[
-        ("soul-checkin", "Soul Check-In", "A personalised reflection", "2m"),
+        ("soul-checkin", "Soul Check-In", "A personalized reflection based on your journey", "2m"),
         ("gods-message", "God's Message", devotional?.scriptureReference ?? "Today's verse", "1m"),
-        ("devotional-prayer", "Daily Devotional", devotional?.title ?? "Reflection and prayer", "5m"),
+        ("devotional-prayer", "Daily Devotional & Prayer", devotional?.title ?? "Finding Peace in the Present", "5m"),
     ]}
 
     var progressPercent: Double {
@@ -724,6 +725,9 @@ struct HomeView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
+
+                    // Week Calendar
+                    WeekCalendarView(completedDays: completedDays, joinedAt: greeting?.joinedAt)
 
                     // Progress
                     VStack(spacing: 6) {
@@ -780,13 +784,88 @@ struct HomeView: View {
     }
 
     func loadData() async {
-        if let gr = try? await APIService.shared.request(path: "/api/devotional/greeting") as GreetingResponse { greeting = gr.data }
+        if let gr = try? await APIService.shared.request(path: "/api/devotional/greeting") as GreetingResponse {
+            greeting = gr.data
+        }
         if let dr = try? await APIService.shared.request(path: "/api/devotional/today") as DevotionalResponse {
             devotional = dr.data
             if let c = dr.completedTaskIds { completedTaskIds = Set(c) }
         }
         if let p = try? await APIService.shared.request(path: "/api/persona") as Persona { persona = p }
-        if let n = try? await APIService.shared.request(path: "/api/notifications") as NotificationsResponse { unreadCount = n.unreadCount }
+        if let n = try? await APIService.shared.request(path: "/api/notifications") as NotificationsResponse {
+            unreadCount = n.unreadCount
+        }
+        if let jr = try? await APIService.shared.request(path: "/api/devotional/journey") as JourneyResponse {
+            completedDays = jr.data?.compactMap { $0.completedAt }.map { String($0.prefix(10)) } ?? []
+        }
+    }
+}
+
+// MARK: - Week Calendar
+struct WeekCalendarView: View {
+    let completedDays: [String]
+    let joinedAt: String?
+
+    var days: [(letter: String, date: Int, isToday: Bool, isComplete: Bool, isFuture: Bool)] {
+        let cal = Calendar.current
+        let today = Date()
+        let weekStart = cal.date(from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
+        let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
+        let joinDate = joinedAt.flatMap { fmt.date(from: String($0.prefix(10))) }
+        let dayLetters = ["S","M","T","W","T","F","S"]
+
+        return (0..<7).map { i in
+            let date = cal.date(byAdding: .day, value: i, to: weekStart)!
+            let key = fmt.string(from: date)
+            let isToday = cal.isDateInToday(date)
+            let isFuture = date > today && !isToday
+            let isBeforeJoin = joinDate.map { date < $0 } ?? false
+            return (
+                letter: dayLetters[cal.component(.weekday, from: date) - 1],
+                date: cal.component(.day, from: date),
+                isToday: isToday,
+                isComplete: completedDays.contains(key) && !isBeforeJoin,
+                isFuture: isFuture || isBeforeJoin
+            )
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(days.enumerated()), id: \.offset) { _, day in
+                VStack(spacing: 6) {
+                    Text(day.letter)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(day.isFuture ? Color(.systemGray4) : .secondary)
+
+                    ZStack {
+                        Circle()
+                            .fill(
+                                day.isComplete ? Color.brand.opacity(0.15) :
+                                day.isToday ? Color.brand : Color.clear
+                            )
+                            .frame(width: 36, height: 36)
+
+                        if day.isComplete {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.brand)
+                        } else {
+                            Text("\(day.date)")
+                                .font(.system(size: 14, weight: day.isToday ? .semibold : .regular))
+                                .foregroundColor(
+                                    day.isFuture ? Color(.systemGray4) :
+                                    day.isToday ? .white : .primary
+                                )
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(14)
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(16)
     }
 }
 
@@ -1029,12 +1108,19 @@ struct MessageBubble: View {
 
 // MARK: - Bible (WebView)
 struct BibleView: View {
+    @State private var navigateToChat = false
+
     var body: some View {
         NavigationStack {
-            SGWebView(path: "/bible")
-                .ignoresSafeArea(edges: .bottom)
-                .navigationTitle("Word")
-                .navigationBarTitleDisplayMode(.inline)
+            SGWebView(path: "/bible") { path in
+                if path.hasPrefix("/chat") { navigateToChat = true }
+            }
+            .ignoresSafeArea(edges: .bottom)
+            .navigationTitle("Word")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $navigateToChat) {
+                NativeChatView(conversationId: nil)
+            }
         }
     }
 }
@@ -1042,65 +1128,112 @@ struct BibleView: View {
 // MARK: - Profile
 struct ProfileView: View {
     @EnvironmentObject var auth: AuthViewModel
-    @State private var persona: Persona?
+    @State private var persona: FullPersona?
+    @State private var stats: UserStats?
+    @State private var showEditJourney = false
 
     var struggle: String? {
         guard let s = persona?.primaryStruggle else { return nil }
-        return STRUGGLE_DISPLAY[s] ?? s
+        return STRUGGLE_DISPLAY[s] ?? s.replacingOccurrences(of: "_", with: " ")
+    }
+    var archetype: (name: String, description: String)? {
+        guard let a = persona?.graceArchetype else { return nil }
+        return ARCHETYPE_DISPLAY[a]
     }
     var goals: [String] {
-        (persona?.transformationGoals ?? []).map { GOAL_DISPLAY[$0] ?? $0 }
+        (persona?.transformationGoals ?? []).map { GOAL_DISPLAY[$0] ?? $0.replacingOccurrences(of: "_", with: " ") }
+    }
+    var relationalDescription: String {
+        let count = stats?.conversationCount ?? 0
+        if count == 0 { return "Your journey together is just beginning." }
+        if count < 3 { return "You've just started getting to know each other." }
+        if count < 8 { return "Your companion is learning your story." }
+        if count < 20 { return "Your companion knows where you've been." }
+        return "Your companion knows you well."
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    // Avatar card
+
+                    // Avatar + name
                     HStack(spacing: 14) {
                         ZStack {
-                            Circle().fill(Color.brand.opacity(0.15)).frame(width: 56, height: 56)
+                            Circle().fill(Color.brand.opacity(0.15)).frame(width: 60, height: 60)
                             Text(auth.user?.initials ?? "?")
-                                .font(.system(size: 20, weight: .semibold)).foregroundColor(Color.brand)
+                                .font(.system(size: 22, weight: .semibold)).foregroundColor(Color.brand)
                         }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(auth.user?.name ?? "").font(.system(size: 16, weight: .semibold))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(auth.user?.name ?? "").font(.system(size: 17, weight: .semibold))
                             Text(auth.user?.email ?? "").font(.system(size: 13)).foregroundColor(.secondary)
                         }
                         Spacer()
                     }
                     .padding(16).background(Color(.secondarySystemBackground)).cornerRadius(16)
 
-                    // Journey card
-                    if struggle != nil || !goals.isEmpty {
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text("YOUR JOURNEY")
-                                .font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
-                                .padding(.bottom, 6)
-                            VStack(alignment: .leading, spacing: 0) {
-                                if let s = struggle {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("CURRENT FOCUS").font(.system(size: 10, weight: .medium)).foregroundColor(.secondary)
-                                        Text(s).font(.system(size: 15))
-                                    }.padding(14)
-                                    Divider().padding(.horizontal, 14)
-                                }
-                                if !goals.isEmpty {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text("GOALS").font(.system(size: 10, weight: .medium)).foregroundColor(.secondary)
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            ForEach(goals, id: \.self) { goal in
-                                                Text(goal).font(.system(size: 13, weight: .medium))
-                                                    .padding(.horizontal, 10).padding(.vertical, 5)
-                                                    .background(Color.brand.opacity(0.1))
-                                                    .foregroundColor(Color.brand).cornerRadius(20)
-                                            }
-                                        }
-                                    }.padding(14)
-                                }
-                            }
-                            .background(Color(.secondarySystemBackground)).cornerRadius(16)
+                    // Stats row
+                    if let s = stats {
+                        HStack(spacing: 0) {
+                            StatCell(value: "\(s.conversationCount)", label: "Conversations")
+                            Divider().frame(height: 40)
+                            StatCell(value: "\(s.currentStreak)", label: "Day streak")
+                            Divider().frame(height: 40)
+                            StatCell(value: "\(s.longestStreak)", label: "Best streak")
                         }
+                        .padding(.vertical, 14)
+                        .background(Color(.secondarySystemBackground)).cornerRadius(16)
+                    }
+
+                    // Companion card
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("YOUR COMPANION").font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        Text(relationalDescription)
+                            .font(.system(size: 14)).foregroundColor(.primary).lineSpacing(3)
+                    }
+                    .padding(16).background(Color(.secondarySystemBackground)).cornerRadius(16)
+
+                    // Journey card
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack {
+                            Text("YOUR JOURNEY").font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
+                            Spacer()
+                            Button("Edit") { showEditJourney = true }
+                                .font(.system(size: 13, weight: .medium)).foregroundColor(Color.brand)
+                        }.padding(.bottom, 8)
+
+                        VStack(alignment: .leading, spacing: 0) {
+                            if let arch = archetype {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("ARCHETYPE").font(.system(size: 10, weight: .medium)).foregroundColor(.secondary)
+                                    Text(arch.name).font(.system(size: 15, weight: .semibold))
+                                    Text(arch.description).font(.system(size: 13)).foregroundColor(.secondary)
+                                }.padding(14)
+                                Divider().padding(.horizontal, 14)
+                            }
+                            if let s = struggle {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("CURRENT FOCUS").font(.system(size: 10, weight: .medium)).foregroundColor(.secondary)
+                                    Text(s).font(.system(size: 15))
+                                }.padding(14)
+                                Divider().padding(.horizontal, 14)
+                            }
+                            if !goals.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("GOALS").font(.system(size: 10, weight: .medium)).foregroundColor(.secondary)
+                                    FlexWrap(items: goals) { goal in
+                                        Text(goal).font(.system(size: 12, weight: .medium))
+                                            .padding(.horizontal, 10).padding(.vertical, 5)
+                                            .background(Color.brand.opacity(0.1))
+                                            .foregroundColor(Color.brand).cornerRadius(20)
+                                    }
+                                }.padding(14)
+                            }
+                        }
+                        .background(Color(.secondarySystemBackground)).cornerRadius(16)
                     }
 
                     // Log out
@@ -1114,24 +1247,69 @@ struct ProfileView: View {
                         .background(Color(.secondarySystemBackground)).cornerRadius(16)
                     }
 
-                    // Delete account
                     Button(action: deleteAccount) {
                         Text("Delete account and all data")
-                            .font(.system(size: 12)).foregroundColor(.secondary.opacity(0.6))
+                            .font(.system(size: 12)).foregroundColor(.secondary.opacity(0.5))
                     }
-                    .padding(.top, 4)
+                    .padding(.top, 4).padding(.bottom, 20)
                 }
-                .padding(.horizontal, 20).padding(.vertical, 16).padding(.bottom, 32)
+                .padding(.horizontal, 20).padding(.top, 16)
             }
             .navigationTitle("Profile")
+            .sheet(isPresented: $showEditJourney) {
+                NavigationStack {
+                    SGWebView(path: "/account")
+                        .ignoresSafeArea(edges: .bottom)
+                        .navigationTitle("Edit Journey")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Done") { showEditJourney = false }
+                            }
+                        }
+                }
+            }
         }
-        .task { persona = try? await APIService.shared.request(path: "/api/persona") }
+        .task { await loadData() }
+    }
+
+    func loadData() async {
+        persona = try? await APIService.shared.request(path: "/api/persona")
+        stats = try? await APIService.shared.request(path: "/api/user/stats")
     }
 
     func deleteAccount() {
         Task {
             _ = try? await APIService.shared.request(path: "/api/auth/account", method: "DELETE", body: [:]) as AuthResponse
             await auth.logout()
+        }
+    }
+}
+
+struct StatCell: View {
+    let value: String; let label: String
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(value).font(.system(size: 22, weight: .bold)).foregroundColor(Color.brand)
+            Text(label).font(.system(size: 11)).foregroundColor(.secondary)
+        }.frame(maxWidth: .infinity)
+    }
+}
+
+struct FlexWrap<Item: Hashable, Content: View>: View {
+    let items: [Item]
+    let content: (Item) -> Content
+    init(items: [Item], @ViewBuilder content: @escaping (Item) -> Content) {
+        self.items = items; self.content = content
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array(stride(from: 0, to: items.count, by: 2)), id: \.self) { i in
+                HStack(spacing: 6) {
+                    content(items[i])
+                    if i + 1 < items.count { content(items[i + 1]) }
+                }
+            }
         }
     }
 }
@@ -1257,8 +1435,14 @@ struct SGButton: View {
 // MARK: - WebView
 struct SGWebView: UIViewRepresentable {
     let path: String
+    var onNavigate: ((String) -> Void)?
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    init(path: String, onNavigate: ((String) -> Void)? = nil) {
+        self.path = path
+        self.onNavigate = onNavigate
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(onNavigate: onNavigate) }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -1279,6 +1463,12 @@ struct SGWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {}
 
     class Coordinator: NSObject, WKNavigationDelegate {
+        var onNavigate: ((String) -> Void)?
+        init(onNavigate: ((String) -> Void)?) { self.onNavigate = onNavigate }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            if let path = webView.url?.path { onNavigate?(path) }
+        }
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
             print("WebView error: \(error.localizedDescription)")
         }
