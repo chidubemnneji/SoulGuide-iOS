@@ -6,7 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B1A246F52F86B67C00F723B6 /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A246F42F86B67900F723B6 /* Views.swift */; };
+		B1A246F72F86B69300F723B6 /* Soulguideapp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A246F62F86B68C00F723B6 /* Soulguideapp.swift */; };
+		B1A246F92F86B6A200F723B6 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A246F82F86B69F00F723B6 /* Models.swift */; };
+		B1A246FB2F86B6B400F723B6 /* Apiservice.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A246FA2F86B6AD00F723B6 /* Apiservice.swift */; };
+		B1A246FD2F86B6C200F723B6 /* Authiewmodel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A246FC2F86B6BE00F723B6 /* Authiewmodel.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		B1A246F42F86B67900F723B6 /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
+		B1A246F62F86B68C00F723B6 /* Soulguideapp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Soulguideapp.swift; sourceTree = "<group>"; };
+		B1A246F82F86B69F00F723B6 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		B1A246FA2F86B6AD00F723B6 /* Apiservice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Apiservice.swift; sourceTree = "<group>"; };
+		B1A246FC2F86B6BE00F723B6 /* Authiewmodel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Authiewmodel.swift; sourceTree = "<group>"; };
 		B1A94E452F781A0B00F1A8ED /* Soul Guide.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Soul Guide.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -34,6 +47,11 @@
 			children = (
 				B1A94E472F781A0B00F1A8ED /* Soul Guide */,
 				B1A94E462F781A0B00F1A8ED /* Products */,
+				B1A246F42F86B67900F723B6 /* Views.swift */,
+				B1A246F62F86B68C00F723B6 /* Soulguideapp.swift */,
+				B1A246F82F86B69F00F723B6 /* Models.swift */,
+				B1A246FA2F86B6AD00F723B6 /* Apiservice.swift */,
+				B1A246FC2F86B6BE00F723B6 /* Authiewmodel.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -82,6 +100,7 @@
 				TargetAttributes = {
 					B1A94E442F781A0B00F1A8ED = {
 						CreatedOnToolsVersion = 26.4;
+						LastSwiftMigration = 2640;
 					};
 				};
 			};
@@ -119,6 +138,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B1A246F92F86B6A200F723B6 /* Models.swift in Sources */,
+				B1A246F52F86B67C00F723B6 /* Views.swift in Sources */,
+				B1A246FB2F86B6B400F723B6 /* Apiservice.swift in Sources */,
+				B1A246FD2F86B6C200F723B6 /* Authiewmodel.swift in Sources */,
+				B1A246F72F86B69300F723B6 /* Soulguideapp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -251,11 +275,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = A99RT4Q38Z;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Soul-Guide-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -272,6 +298,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -283,11 +310,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = A99RT4Q38Z;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Soul-Guide-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
