@@ -497,7 +497,7 @@ struct NativeOnboardingView: View {
                         "primaryStruggle": selectedStruggle,
                         "transformationGoals": Array(selectedGoals) as [Any],
                     ]
-                    let _: AuthResponse = try await APIService.shared.request(
+                    let _: OnboardingResponse = try await APIService.shared.request(
                         path: "/api/onboarding",
                         method: "POST",
                         body: body

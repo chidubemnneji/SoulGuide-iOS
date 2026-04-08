@@ -130,3 +130,8 @@ let GOAL_DISPLAY: [String: String] = [
     "peace_not_anxiety": "Peace instead of anxiety",
     "friends_understand": "Friends who get my journey",
 ]
+
+struct OnboardingResponse: Codable {
+    let success: Bool
+    let message: String?
+}
