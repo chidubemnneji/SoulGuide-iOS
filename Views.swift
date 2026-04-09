@@ -503,13 +503,20 @@ struct NativeOnboardingView: View {
                         body: body
                     )
                     await auth.refreshUser()
+                    await MainActor.run {
+                        isLoading = false
+                        onComplete()
+                    }
                 } catch {
                     print("Onboarding error: \(error)")
+                    await MainActor.run { isLoading = false }
                 }
             } else {
-                await MainActor.run { errorMsg = auth.error ?? "Something went wrong" }
+                await MainActor.run {
+                    errorMsg = auth.error ?? "Something went wrong"
+                    isLoading = false
+                }
             }
-            await MainActor.run { isLoading = false }
         }
     }
 
@@ -631,7 +638,120 @@ struct PasswordStrength: View {
     }
 }
 
-// MARK: - Main Tab View
+// MARK: - Post Onboarding Transition
+struct PostOnboardingView: View {
+    @EnvironmentObject var auth: AuthViewModel
+    @State private var showMeetPartner = false
+
+    var body: some View {
+        if showMeetPartner {
+            MeetPartnerView()
+                .environmentObject(auth)
+        } else {
+            TransitionWebView(onContinue: {
+                withAnimation { showMeetPartner = true }
+            })
+        }
+    }
+}
+
+struct TransitionWebView: View {
+    var onContinue: () -> Void
+
+    var body: some View {
+        TransitionWebViewRepresentable(onContinue: onContinue)
+            .ignoresSafeArea()
+    }
+}
+
+struct TransitionWebViewRepresentable: UIViewRepresentable {
+    var onContinue: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onContinue: onContinue) }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = WKWebsiteDataStore.default()
+        config.defaultWebpagePreferences.allowsContentJavaScript = true
+
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
+        webView.scrollView.bounces = false
+
+        guard let url = URL(string: "https://spirit-guide-ai-production.up.railway.app/transition") else { return webView }
+        webView.load(URLRequest(url: url))
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {}
+
+    class Coordinator: NSObject, WKNavigationDelegate {
+        var onContinue: () -> Void
+        init(onContinue: @escaping () -> Void) { self.onContinue = onContinue }
+
+        func webView(_ webView: WKWebView,
+                     decidePolicyFor action: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            if let url = action.request.url,
+               url.path == "/meet-prayer-partner" {
+                decisionHandler(.cancel)
+                DispatchQueue.main.async { self.onContinue() }
+                return
+            }
+            decisionHandler(.allow)
+        }
+    }
+}
+
+struct MeetPartnerView: View {
+    @EnvironmentObject var auth: AuthViewModel
+
+    var body: some View {
+        MeetPartnerWebViewRepresentable(onStart: {
+            Task { await auth.refreshUser() }
+        })
+        .ignoresSafeArea()
+    }
+}
+
+struct MeetPartnerWebViewRepresentable: UIViewRepresentable {
+    var onStart: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onStart: onStart) }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = WKWebsiteDataStore.default()
+        config.defaultWebpagePreferences.allowsContentJavaScript = true
+
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
+        webView.scrollView.bounces = false
+
+        guard let url = URL(string: "https://spirit-guide-ai-production.up.railway.app/meet-prayer-partner") else { return webView }
+        webView.load(URLRequest(url: url))
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {}
+
+    class Coordinator: NSObject, WKNavigationDelegate {
+        var onStart: () -> Void
+        init(onStart: @escaping () -> Void) { self.onStart = onStart }
+
+        func webView(_ webView: WKWebView,
+                     decidePolicyFor action: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            if let url = action.request.url,
+               url.path.hasPrefix("/chat") {
+                decisionHandler(.cancel)
+                DispatchQueue.main.async { self.onStart() }
+                return
+            }
+            decisionHandler(.allow)
+        }
+    }
+}
 struct MainTabView: View {
     @EnvironmentObject var auth: AuthViewModel
     @State private var selectedTab = 0

@@ -15,6 +15,7 @@ struct SoulGuideApp: App {
 
 struct RootView: View {
     @EnvironmentObject var auth: AuthViewModel
+    @State private var showTransition = false
 
     var body: some View {
         Group {
@@ -23,8 +24,14 @@ struct RootView: View {
             } else if !auth.isAuthenticated {
                 WelcomeView()
             } else if !auth.isOnboarded {
-                NativeOnboardingView(onComplete: {})
+                NativeOnboardingView(onComplete: {
+                    showTransition = true
+                })
+                .environmentObject(auth)
+            } else if showTransition {
+                PostOnboardingView()
                     .environmentObject(auth)
+                    .onAppear { showTransition = false }
             } else {
                 MainTabView()
                     .environmentObject(auth)
@@ -32,5 +39,6 @@ struct RootView: View {
         }
         .animation(.easeInOut(duration: 0.35), value: auth.isAuthenticated)
         .animation(.easeInOut(duration: 0.35), value: auth.isOnboarded)
+        .animation(.easeInOut(duration: 0.35), value: showTransition)
     }
 }
