@@ -7,5 +7,7 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SoulGuide uses your microphone to let you speak your prayers and thoughts instead of typing.</string>
 </dict>
 </plist>

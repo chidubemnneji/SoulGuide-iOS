@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import AVFoundation
 
 // MARK: - Color Extension
 extension Color {
@@ -1005,6 +1006,10 @@ struct NativeChatView: View {
     @State private var isStreaming = false
     @State private var streamingText = ""
     @State private var activeConvId: Int?
+    @State private var isRecording = false
+    @State private var isTranscribing = false
+    @State private var recorder: AVAudioRecorder?
+    @State private var audioURL: URL?
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -1037,6 +1042,25 @@ struct NativeChatView: View {
                     .background(Color(.secondarySystemBackground)).cornerRadius(20)
                     .focused($focused)
 
+                // Mic button
+                if input.isEmpty && !isStreaming {
+                    Button(action: handleMic) {
+                        ZStack {
+                            Circle()
+                                .fill(isRecording ? Color.red : Color(.secondarySystemBackground))
+                                .frame(width: 36, height: 36)
+                            if isTranscribing {
+                                ProgressView().tint(Color.brand).scaleEffect(0.7)
+                            } else {
+                                Image(systemName: isRecording ? "stop.fill" : "mic")
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundColor(isRecording ? .white : Color.brand)
+                            }
+                        }
+                    }
+                }
+
+                // Send button
                 Button(action: send) {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
@@ -1050,6 +1074,68 @@ struct NativeChatView: View {
         }
         .navigationTitle("Soul Care").navigationBarTitleDisplayMode(.inline)
         .task { await setup() }
+    }
+
+    func handleMic() {
+        if isRecording {
+            stopRecording()
+        } else {
+            startRecording()
+        }
+    }
+
+    func startRecording() {
+        AVAudioSession.sharedInstance().requestRecordPermission { granted in
+            guard granted else { return }
+            DispatchQueue.main.async {
+                let session = AVAudioSession.sharedInstance()
+                try? session.setCategory(.record, mode: .default)
+                try? session.setActive(true)
+
+                let url = FileManager.default.temporaryDirectory.appendingPathComponent("recording.m4a")
+                let settings: [String: Any] = [
+                    AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                    AVSampleRateKey: 44100,
+                    AVNumberOfChannelsKey: 1,
+                    AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                ]
+                recorder = try? AVAudioRecorder(url: url, settings: settings)
+                recorder?.record()
+                audioURL = url
+                isRecording = true
+            }
+        }
+    }
+
+    func stopRecording() {
+        recorder?.stop()
+        recorder = nil
+        isRecording = false
+        try? AVAudioSession.sharedInstance().setActive(false)
+
+        guard let url = audioURL else { return }
+        isTranscribing = true
+
+        Task {
+            do {
+                let data = try Data(contentsOf: url)
+                let base64 = data.base64EncodedString()
+                struct TranscribeResponse: Codable { let transcript: String }
+                let response: TranscribeResponse = try await APIService.shared.request(
+                    path: "/api/voice/transcribe",
+                    method: "POST",
+                    body: ["audio": base64, "format": "mp4"]
+                )
+                await MainActor.run {
+                    if !response.transcript.isEmpty {
+                        input = response.transcript
+                    }
+                    isTranscribing = false
+                }
+            } catch {
+                await MainActor.run { isTranscribing = false }
+            }
+        }
     }
 
     func setup() async {
