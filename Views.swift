@@ -1585,7 +1585,6 @@ struct SGWebView: UIViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
-        webView.overrideUserInterfaceStyle = .light
         webView.scrollView.bounces = true
 
         guard let url = URL(string: "https://spirit-guide-ai-production.up.railway.app\(path)?nativeApp=1") else { return webView }
