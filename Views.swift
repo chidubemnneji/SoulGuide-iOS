@@ -17,7 +17,7 @@ extension Color {
     }
     static let brand = Color(hex: "7C6AC7")
     static let gold = Color(hex: "C8A96E")
-    // Adaptive accent: gold in dark mode, purple in light mode
+    // Adaptive accent: purple in light mode, gold in dark mode
     static let accent = Color(UIColor { traits in
         traits.userInterfaceStyle == .dark
             ? UIColor(red: 200/255, green: 169/255, blue: 110/255, alpha: 1) // gold
@@ -66,7 +66,7 @@ struct WelcomeView: View {
                 // Logo + wordmark
                 HStack(spacing: 10) {
                     FlameLogo(size: 44)
-                    (Text("Soul").foregroundColor(.primary) + Text("Guide").foregroundColor(Color(hex: "C8A96E")))
+                    (Text("Soul").foregroundColor(Color.brand) + Text("Guide").foregroundColor(Color.gold))
                         .font(.custom("Georgia", size: 22)).fontWeight(.bold)
                 }
                 .padding(.top, 60)
