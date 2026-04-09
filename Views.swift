@@ -717,12 +717,29 @@ struct TransitionWebViewRepresentable: UIViewRepresentable {
 
 struct MeetPartnerView: View {
     @EnvironmentObject var auth: AuthViewModel
+    @State private var navigateToFirstChat = false
 
     var body: some View {
-        MeetPartnerWebViewRepresentable(onStart: {
-            Task { await auth.refreshUser() }
-        })
-        .ignoresSafeArea()
+        ZStack {
+            MeetPartnerWebViewRepresentable(onStart: {
+                navigateToFirstChat = true
+            })
+            .ignoresSafeArea()
+
+            // Hidden navigation trigger
+            NavigationLink(
+                destination: NativeChatView(conversationId: nil, openingMode: "first_chat")
+                    .navigationBarBackButtonHidden(true),
+                isActive: $navigateToFirstChat
+            ) { EmptyView() }
+        }
+        .navigationBarHidden(true)
+        .onChange(of: navigateToFirstChat) { _, active in
+            if !active {
+                // Once they've navigated away, refresh and go to main app
+                Task { await auth.refreshUser() }
+            }
+        }
     }
 }
 
@@ -1197,6 +1214,7 @@ struct ChatListView: View {
 // MARK: - Native Chat
 struct NativeChatView: View {
     let conversationId: Int?
+    var openingMode: String? = nil // "first_chat", "checkin", nil
     @State private var messages: [Message] = []
     @State private var input = ""
     @State private var isStreaming = false
@@ -1341,8 +1359,26 @@ struct NativeChatView: View {
                 messages = r.messages
             }
         } else {
-            if let r = try? await APIService.shared.request(path: "/api/conversations", method: "POST", body: ["title": "New Conversation", "channel": "general"]) as CreateConversationResponse {
+            if let r = try? await APIService.shared.request(
+                path: "/api/conversations", method: "POST",
+                body: ["title": "New Conversation", "channel": "general"]
+            ) as CreateConversationResponse {
                 activeConvId = r.id
+            }
+            // Fetch personalized opening for new conversations
+            let mode = openingMode ?? "checkin"
+            struct OpeningResponse: Codable { let message: String }
+            if let opening = try? await APIService.shared.request(
+                path: "/api/chat/personalized-opening?mode=\(mode)"
+            ) as OpeningResponse {
+                await MainActor.run {
+                    messages.append(Message(
+                        id: Int.random(in: 100000...999999),
+                        role: "assistant",
+                        content: opening.message,
+                        createdAt: ""
+                    ))
+                }
             }
         }
     }
