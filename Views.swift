@@ -973,7 +973,11 @@ struct WeekCalendarView: View {
                 VStack(spacing: 6) {
                     Text(day.letter)
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(day.isFuture ? Color(.systemGray5) : .secondary)
+                        .foregroundColor(
+                            day.isPast ? Color(.systemGray3) :
+                            day.isFuture ? Color(.systemGray4) :
+                            .secondary
+                        )
 
                     ZStack {
                         Circle()
@@ -992,8 +996,8 @@ struct WeekCalendarView: View {
                             Text("\(day.date)")
                                 .font(.system(size: 14, weight: day.isToday ? .semibold : .regular))
                                 .foregroundColor(
-                                    day.isFuture ? Color(.systemGray4) :
-                                    day.isPast ? Color(.systemGray2) :
+                                    day.isPast ? Color(.systemGray3) :
+                                    day.isFuture ? Color(.systemGray5) :
                                     day.isToday ? .white : .primary
                                 )
                         }
