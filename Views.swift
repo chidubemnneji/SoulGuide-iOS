@@ -16,6 +16,7 @@ extension Color {
         self.init(red: Double(r)/255, green: Double(g)/255, blue: Double(b)/255)
     }
     static let brand = Color(hex: "7C6AC7")
+    static let gold = Color(hex: "C8A96E")
 }
 
 // MARK: - Splash
@@ -251,7 +252,7 @@ struct NativeOnboardingView: View {
             HStack(spacing: 6) {
                 ForEach(0..<totalSteps, id: \.self) { i in
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(i <= step ? Color.brand : Color.brand.opacity(0.2))
+                        .fill(i <= step ? Color.gold : Color.gold.opacity(0.2))
                         .frame(height: 3)
                 }
             }
@@ -822,11 +823,11 @@ struct HomeView: View {
                         Spacer()
                         if let streak = greeting?.currentStreak, streak > 0 {
                             HStack(spacing: 4) {
-                                Image(systemName: "flame.fill").font(.system(size: 12)).foregroundColor(Color.brand)
-                                Text("\(streak) day streak").font(.system(size: 13, weight: .semibold)).foregroundColor(Color.brand)
+                                Image(systemName: "flame.fill").font(.system(size: 12)).foregroundColor(Color.gold)
+                                Text("\(streak) day streak").font(.system(size: 13, weight: .semibold)).foregroundColor(Color.gold)
                             }
                             .padding(.horizontal, 12).padding(.vertical, 6)
-                            .background(Color.brand.opacity(0.1)).cornerRadius(20)
+                            .background(Color.gold.opacity(0.15)).cornerRadius(20)
                         }
                         Spacer()
                         Button(action: { showNotifications = true }) {
@@ -864,7 +865,7 @@ struct HomeView: View {
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
                                 RoundedRectangle(cornerRadius: 3).fill(Color(.systemGray5)).frame(height: 5)
-                                RoundedRectangle(cornerRadius: 3).fill(Color.brand)
+                                RoundedRectangle(cornerRadius: 3).fill(Color.gold)
                                     .frame(width: geo.size.width * progressPercent, height: 5)
                                     .animation(.easeInOut, value: progressPercent)
                             }
@@ -886,14 +887,14 @@ struct HomeView: View {
                     if let d = devotional, let ref = d.scriptureReference {
                         VStack(alignment: .leading, spacing: 10) {
                             HStack(spacing: 6) {
-                                Image(systemName: "book.fill").font(.system(size: 11)).foregroundColor(Color.brand)
-                                Text("VERSE OF THE DAY").font(.system(size: 11, weight: .semibold)).foregroundColor(Color.brand)
+                                Image(systemName: "book.fill").font(.system(size: 11)).foregroundColor(Color.gold)
+                                Text("VERSE OF THE DAY").font(.system(size: 11, weight: .semibold)).foregroundColor(Color.gold)
                             }
                             if let text = d.scriptureText {
                                 Text("\u{201C}\(text)\u{201D}")
                                     .font(.custom("Georgia", size: 16)).italic().lineSpacing(3)
                             }
-                            Text(ref).font(.system(size: 13, weight: .medium)).foregroundColor(Color.brand)
+                            Text(ref).font(.system(size: 13, weight: .medium)).foregroundColor(Color.gold)
                         }
                         .padding(16).background(Color(.secondarySystemBackground)).cornerRadius(16)
                     }
@@ -972,7 +973,7 @@ struct WeekCalendarView: View {
                         Circle()
                             .fill(
                                 day.isComplete ? Color.brand.opacity(0.15) :
-                                day.isToday ? Color.brand : Color.clear
+                                day.isToday ? Color.gold : Color.clear
                             )
                             .frame(width: 36, height: 36)
 
@@ -1009,8 +1010,8 @@ struct TaskCard: View {
             HStack(spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(isCompleted ? Color.brand : Color(.systemGray4), lineWidth: 2)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(isCompleted ? Color.brand : Color.clear))
+                        .strokeBorder(isCompleted ? Color.gold : Color(.systemGray4), lineWidth: 2)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(isCompleted ? Color.gold : Color.clear))
                         .frame(width: 32, height: 32)
                     if isCompleted {
                         Image(systemName: "checkmark").font(.system(size: 13, weight: .semibold)).foregroundColor(.white)
@@ -1065,7 +1066,7 @@ struct ChatListView: View {
                             Text("Start a conversation")
                                 .font(.system(size: 15, weight: .medium)).foregroundColor(.white)
                                 .padding(.horizontal, 24).padding(.vertical, 12)
-                                .background(Color.brand).cornerRadius(12)
+                                .background(Color.gold).cornerRadius(12)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1189,7 +1190,7 @@ struct NativeChatView: View {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
                         .frame(width: 36, height: 36)
-                        .background(input.isEmpty || isStreaming ? Color.secondary : Color.brand)
+                        .background(input.isEmpty || isStreaming ? Color.secondary : Color.gold)
                         .clipShape(Circle())
                 }
                 .disabled(input.isEmpty || isStreaming)
@@ -1459,7 +1460,7 @@ struct ProfileView: View {
                             Text("YOUR JOURNEY").font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
                             Spacer()
                             Button("Edit") { showEditJourney = true }
-                                .font(.system(size: 13, weight: .medium)).foregroundColor(Color.brand)
+                                .font(.system(size: 13, weight: .medium)).foregroundColor(Color.gold)
                         }.padding(.bottom, 8)
 
                         VStack(alignment: .leading, spacing: 0) {
@@ -1484,8 +1485,8 @@ struct ProfileView: View {
                                     FlexWrap(items: goals) { goal in
                                         Text(goal).font(.system(size: 12, weight: .medium))
                                             .padding(.horizontal, 10).padding(.vertical, 5)
-                                            .background(Color.brand.opacity(0.1))
-                                            .foregroundColor(Color.brand).cornerRadius(20)
+                                            .background(Color.gold.opacity(0.15))
+                                            .foregroundColor(Color.gold).cornerRadius(20)
                                     }
                                 }.padding(14)
                             }
@@ -1547,7 +1548,7 @@ struct StatCell: View {
     let value: String; let label: String
     var body: some View {
         VStack(spacing: 4) {
-            Text(value).font(.system(size: 22, weight: .bold)).foregroundColor(Color.brand)
+            Text(value).font(.system(size: 22, weight: .bold)).foregroundColor(Color.gold)
             Text(label).font(.system(size: 11)).foregroundColor(.secondary)
         }.frame(maxWidth: .infinity)
     }
@@ -1683,7 +1684,7 @@ struct SGButton: View {
             }
         }
         .frame(maxWidth: .infinity).frame(height: 54)
-        .background(disabled || isLoading ? Color.brand.opacity(0.4) : Color.brand)
+        .background(disabled || isLoading ? Color.gold.opacity(0.4) : Color.gold)
         .cornerRadius(14)
         .disabled(disabled || isLoading)
     }
