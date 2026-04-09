@@ -937,15 +937,14 @@ struct WeekCalendarView: View {
     let completedDays: [String]
     let joinedAt: String?
 
-    var days: [(letter: String, date: Int, isToday: Bool, isComplete: Bool, isFuture: Bool)] {
+    var days: [(letter: String, date: Int, isToday: Bool, isComplete: Bool, isFuture: Bool, isPast: Bool)] {
         let cal = Calendar.current
         let today = Date()
         let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
         let joinDate = joinedAt.flatMap { fmt.date(from: String($0.prefix(10))) }
 
-        // Get Monday of current week
         var comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)
-        comps.weekday = 2 // Monday
+        comps.weekday = 2
         let weekStart = cal.date(from: comps) ?? today
 
         let dayLetters = ["M","T","W","T","F","S","S"]
@@ -955,13 +954,15 @@ struct WeekCalendarView: View {
             let key = fmt.string(from: date)
             let isToday = cal.isDateInToday(date)
             let isFuture = date > today && !isToday
+            let isPast = date < today && !isToday
             let isBeforeJoin = joinDate.map { date < $0 } ?? false
             return (
                 letter: dayLetters[i],
                 date: cal.component(.day, from: date),
                 isToday: isToday,
                 isComplete: completedDays.contains(key) && !isBeforeJoin,
-                isFuture: isFuture || isBeforeJoin
+                isFuture: isFuture,
+                isPast: isPast || isBeforeJoin
             )
         }
     }
@@ -972,13 +973,14 @@ struct WeekCalendarView: View {
                 VStack(spacing: 6) {
                     Text(day.letter)
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(day.isFuture ? Color(.systemGray4) : .secondary)
+                        .foregroundColor(day.isFuture ? Color(.systemGray5) : .secondary)
 
                     ZStack {
                         Circle()
                             .fill(
                                 day.isComplete ? Color.brand.opacity(0.15) :
-                                day.isToday ? Color.gold : Color.clear
+                                day.isToday ? Color.gold :
+                                Color.clear
                             )
                             .frame(width: 36, height: 36)
 
@@ -991,6 +993,7 @@ struct WeekCalendarView: View {
                                 .font(.system(size: 14, weight: day.isToday ? .semibold : .regular))
                                 .foregroundColor(
                                     day.isFuture ? Color(.systemGray4) :
+                                    day.isPast ? Color(.systemGray2) :
                                     day.isToday ? .white : .primary
                                 )
                         }
