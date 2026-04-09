@@ -1216,7 +1216,7 @@ struct ChatListView: View {
 // MARK: - Native Chat
 struct NativeChatView: View {
     let conversationId: Int?
-    var openingMode: String? = nil // "first_chat", "checkin", nil
+    var openingMode: String? = nil
     @State private var messages: [Message] = []
     @State private var input = ""
     @State private var isStreaming = false
@@ -1226,17 +1226,41 @@ struct NativeChatView: View {
     @State private var isTranscribing = false
     @State private var recorder: AVAudioRecorder?
     @State private var audioURL: URL?
+    @State private var showMood = true
+    @State private var selectedMood: String? = nil
+    @State private var playingMessageId: Int? = nil
+    @State private var audioPlayer: AVAudioPlayer? = nil
     @FocusState private var focused: Bool
+
+    let moods: [(id: String, emoji: String, label: String)] = [
+        ("anxious", "😟", "Anxious"),
+        ("sad", "😔", "Sad"),
+        ("stressed", "😩", "Stressed"),
+        ("hopeful", "🙏", "Hopeful"),
+        ("joyful", "😊", "Grateful"),
+    ]
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(messages) { MessageBubble(message: $0).id($0.id) }
+                        ForEach(messages) { msg in
+                            VStack(spacing: 6) {
+                                MessageBubble(
+                                    message: msg,
+                                    isPlaying: playingMessageId == msg.id,
+                                    onListen: { listenTo(msg) }
+                                )
+                            }
+                            .id(msg.id)
+                        }
                         if !streamingText.isEmpty {
-                            MessageBubble(message: Message(id: -1, role: "assistant", content: streamingText, createdAt: ""))
-                                .id("streaming")
+                            MessageBubble(
+                                message: Message(id: -1, role: "assistant", content: streamingText, createdAt: ""),
+                                isPlaying: false,
+                                onListen: {}
+                            ).id("streaming")
                         }
                     }
                     .padding(.horizontal, 16).padding(.vertical, 12)
@@ -1249,6 +1273,11 @@ struct NativeChatView: View {
                 }
             }
 
+            // Mood check-in
+            if showMood && messages.count <= 1 && conversationId == nil {
+                MoodCheckInView(moods: moods, selected: $selectedMood, onSkip: { showMood = false })
+            }
+
             Divider()
 
             HStack(spacing: 10) {
@@ -1258,7 +1287,6 @@ struct NativeChatView: View {
                     .background(Color(.secondarySystemBackground)).cornerRadius(20)
                     .focused($focused)
 
-                // Mic button
                 if input.isEmpty && !isStreaming {
                     Button(action: handleMic) {
                         ZStack {
@@ -1276,7 +1304,6 @@ struct NativeChatView: View {
                     }
                 }
 
-                // Send button
                 Button(action: send) {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
@@ -1292,12 +1319,38 @@ struct NativeChatView: View {
         .task { await setup() }
     }
 
-    func handleMic() {
-        if isRecording {
-            stopRecording()
-        } else {
-            startRecording()
+    func listenTo(_ message: Message) {
+        if playingMessageId == message.id {
+            audioPlayer?.stop()
+            playingMessageId = nil
+            return
         }
+        playingMessageId = message.id
+        Task {
+            do {
+                struct SpeakResponse: Codable { let audio: String; let format: String }
+                let r: SpeakResponse = try await APIService.shared.request(
+                    path: "/api/voice/speak", method: "POST",
+                    body: ["text": message.content, "voice": "nova"]
+                )
+                if let data = Data(base64Encoded: r.audio) {
+                    await MainActor.run {
+                        try? AVAudioSession.sharedInstance().setCategory(.playback)
+                        try? AVAudioSession.sharedInstance().setActive(true)
+                        audioPlayer = try? AVAudioPlayer(data: data)
+                        audioPlayer?.play()
+                    }
+                    try? await Task.sleep(nanoseconds: UInt64((audioPlayer?.duration ?? 0) * 1_000_000_000))
+                    await MainActor.run { playingMessageId = nil }
+                }
+            } catch {
+                await MainActor.run { playingMessageId = nil }
+            }
+        }
+    }
+
+    func handleMic() {
+        if isRecording { stopRecording() } else { startRecording() }
     }
 
     func startRecording() {
@@ -1307,7 +1360,6 @@ struct NativeChatView: View {
                 let session = AVAudioSession.sharedInstance()
                 try? session.setCategory(.record, mode: .default)
                 try? session.setActive(true)
-
                 let url = FileManager.default.temporaryDirectory.appendingPathComponent("recording.m4a")
                 let settings: [String: Any] = [
                     AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
@@ -1324,39 +1376,30 @@ struct NativeChatView: View {
     }
 
     func stopRecording() {
-        recorder?.stop()
-        recorder = nil
-        isRecording = false
+        recorder?.stop(); recorder = nil; isRecording = false
         try? AVAudioSession.sharedInstance().setActive(false)
-
         guard let url = audioURL else { return }
         isTranscribing = true
-
         Task {
             do {
                 let data = try Data(contentsOf: url)
-                let base64 = data.base64EncodedString()
                 struct TranscribeResponse: Codable { let transcript: String }
-                let response: TranscribeResponse = try await APIService.shared.request(
-                    path: "/api/voice/transcribe",
-                    method: "POST",
-                    body: ["audio": base64, "format": "mp4"]
+                let r: TranscribeResponse = try await APIService.shared.request(
+                    path: "/api/voice/transcribe", method: "POST",
+                    body: ["audio": data.base64EncodedString(), "format": "mp4"]
                 )
                 await MainActor.run {
-                    if !response.transcript.isEmpty {
-                        input = response.transcript
-                    }
+                    if !r.transcript.isEmpty { input = r.transcript }
                     isTranscribing = false
                 }
-            } catch {
-                await MainActor.run { isTranscribing = false }
-            }
+            } catch { await MainActor.run { isTranscribing = false } }
         }
     }
 
     func setup() async {
         if let id = conversationId {
             activeConvId = id
+            showMood = false
             if let r = try? await APIService.shared.request(path: "/api/conversations/\(id)/messages") as MessagesResponse {
                 messages = r.messages
             }
@@ -1367,19 +1410,13 @@ struct NativeChatView: View {
             ) as CreateConversationResponse {
                 activeConvId = r.id
             }
-            // Fetch personalized opening for new conversations
             let mode = openingMode ?? "checkin"
             struct OpeningResponse: Codable { let message: String }
             if let opening = try? await APIService.shared.request(
                 path: "/api/chat/personalized-opening?mode=\(mode)"
             ) as OpeningResponse {
                 await MainActor.run {
-                    messages.append(Message(
-                        id: Int.random(in: 100000...999999),
-                        role: "assistant",
-                        content: opening.message,
-                        createdAt: ""
-                    ))
+                    messages.append(Message(id: Int.random(in: 100000...999999), role: "assistant", content: opening.message, createdAt: ""))
                 }
             }
         }
@@ -1388,11 +1425,13 @@ struct NativeChatView: View {
     func send() {
         guard let convId = activeConvId, !input.isEmpty, !isStreaming else { return }
         let content = input; input = ""
+        let mood = selectedMood
+        showMood = false
         messages.append(Message(id: Int.random(in: 100000...999999), role: "user", content: content, createdAt: ""))
         isStreaming = true; streamingText = ""
         Task {
             do {
-                for try await chunk in APIService.shared.streamChat(conversationId: convId, content: content) {
+                for try await chunk in APIService.shared.streamChat(conversationId: convId, content: content, mood: mood) {
                     await MainActor.run { streamingText += chunk }
                 }
                 await MainActor.run {
@@ -1401,32 +1440,255 @@ struct NativeChatView: View {
                         streamingText = ""
                     }
                     isStreaming = false
+                    selectedMood = nil
                 }
-            } catch {
-                await MainActor.run { isStreaming = false }
+            } catch { await MainActor.run { isStreaming = false } }
+        }
+    }
+}
+
+// MARK: - Mood Check-In
+struct MoodCheckInView: View {
+    let moods: [(id: String, emoji: String, label: String)]
+    @Binding var selected: String?
+    let onSkip: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("How are you feeling right now?")
+                    .font(.system(size: 14, weight: .medium))
+                Spacer()
+                Button("Skip", action: onSkip)
+                    .font(.system(size: 13)).foregroundColor(.secondary)
+            }
+            HStack(spacing: 8) {
+                ForEach(moods, id: \.id) { mood in
+                    Button(action: { selected = selected == mood.id ? nil : mood.id }) {
+                        VStack(spacing: 4) {
+                            Text(mood.emoji).font(.system(size: 22))
+                            Text(mood.label).font(.system(size: 10, weight: .medium))
+                                .foregroundColor(selected == mood.id ? Color.brand : .secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(selected == mood.id ? Color.brand.opacity(0.1) : Color(.secondarySystemBackground))
+                        .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(selected == mood.id ? Color.brand : Color.clear, lineWidth: 1.5))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 10)
+        .background(Color(.systemBackground))
+    }
+}
+
+// MARK: - Message Bubble
+struct MessageBubble: View {
+    let message: Message
+    var isPlaying: Bool = false
+    var onListen: () -> Void = {}
+
+    var body: some View {
+        VStack(alignment: message.isUser ? .trailing : .leading, spacing: 4) {
+            HStack(alignment: .bottom, spacing: 8) {
+                if message.isUser { Spacer(minLength: 60) }
+                if !message.isUser {
+                    ZStack {
+                        Circle().fill(Color.brand.opacity(0.15)).frame(width: 28, height: 28)
+                        Image(systemName: "flame.fill").font(.system(size: 12)).foregroundColor(Color.brand)
+                    }
+                }
+                Text(message.content)
+                    .font(.system(size: 16)).lineSpacing(2)
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    .background(message.isUser ? Color.brand : Color(.secondarySystemBackground))
+                    .foregroundColor(message.isUser ? .white : .primary)
+                    .cornerRadius(18)
+                if !message.isUser { Spacer(minLength: 60) }
+            }
+            // Listen button for AI messages
+            if !message.isUser && message.id != -1 {
+                Button(action: onListen) {
+                    HStack(spacing: 4) {
+                        Image(systemName: isPlaying ? "pause.fill" : "speaker.wave.2")
+                            .font(.system(size: 11))
+                        Text(isPlaying ? "Playing..." : "Listen")
+                            .font(.system(size: 12))
+                    }
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 44)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
 }
 
-struct MessageBubble: View {
-    let message: Message
+// MARK: - Native Journal
+struct JournalView: View {
+    @State private var entries: [JournalEntryFull] = []
+    @State private var showNew = false
+    @State private var isLoading = true
+
+    let moods = [
+        ("grateful", "🙏", "Grateful"),
+        ("hopeful", "✨", "Hopeful"),
+        ("peaceful", "🕊️", "Peaceful"),
+        ("anxious", "😟", "Anxious"),
+        ("sad", "😔", "Sad"),
+        ("wrestling", "⚡", "Wrestling"),
+    ]
+
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            if message.isUser { Spacer(minLength: 60) }
-            if !message.isUser {
-                ZStack {
-                    Circle().fill(Color.brand.opacity(0.15)).frame(width: 28, height: 28)
-                    Image(systemName: "flame.fill").font(.system(size: 12)).foregroundColor(Color.brand)
+        NavigationStack {
+            Group {
+                if isLoading {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if entries.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "book.closed").font(.system(size: 48)).foregroundColor(Color.brand.opacity(0.4))
+                        Text("Your journal is empty").font(.system(size: 16)).foregroundColor(.secondary)
+                        Text("Record your prayers, reflections and moments with God.")
+                            .font(.system(size: 14)).foregroundColor(.secondary)
+                            .multilineTextAlignment(.center).padding(.horizontal, 40)
+                        Button(action: { showNew = true }) {
+                            Text("Write your first entry")
+                                .font(.system(size: 15, weight: .medium)).foregroundColor(.white)
+                                .padding(.horizontal, 24).padding(.vertical, 12)
+                                .background(Color.accent).cornerRadius(12)
+                        }
+                    }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(entries) { entry in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    if let mood = entry.mood,
+                                       let m = moods.first(where: { $0.0 == mood }) {
+                                        Text(m.1).font(.system(size: 16))
+                                        Text(m.2).font(.system(size: 12, weight: .medium)).foregroundColor(Color.accent)
+                                    }
+                                    Spacer()
+                                    Text(relativeDate(entry.createdAt))
+                                        .font(.system(size: 11)).foregroundColor(.secondary)
+                                }
+                                if let ref = entry.verseReference {
+                                    Text(ref).font(.system(size: 12, weight: .medium)).foregroundColor(Color.brand)
+                                }
+                                Text(entry.content)
+                                    .font(.system(size: 14)).foregroundColor(.primary)
+                                    .lineLimit(3).lineSpacing(2)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .onDelete(perform: deleteEntry)
+                    }
+                    .listStyle(.plain)
                 }
             }
-            Text(message.content)
-                .font(.system(size: 16)).lineSpacing(2)
-                .padding(.horizontal, 14).padding(.vertical, 10)
-                .background(message.isUser ? Color.brand : Color(.secondarySystemBackground))
-                .foregroundColor(message.isUser ? .white : .primary)
-                .cornerRadius(18)
-            if !message.isUser { Spacer(minLength: 60) }
+            .navigationTitle("Prayer Journal")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: { showNew = true }) {
+                        Image(systemName: "square.and.pencil").foregroundColor(Color.accent)
+                    }
+                }
+            }
+            .sheet(isPresented: $showNew, onDismiss: { Task { await load() } }) {
+                NewJournalEntryView(moods: moods)
+            }
+        }
+        .task { await load() }
+    }
+
+    func load() async {
+        if let r = try? await APIService.shared.request(path: "/api/journal") as JournalListResponse {
+            entries = r.entries
+        }
+        isLoading = false
+    }
+
+    func deleteEntry(at offsets: IndexSet) {
+        for i in offsets {
+            let id = entries[i].id
+            Task {
+                _ = try? await APIService.shared.request(path: "/api/journal/\(id)", method: "DELETE", body: [:]) as JournalListResponse
+            }
+        }
+        entries.remove(atOffsets: offsets)
+    }
+
+    func relativeDate(_ str: String) -> String {
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = fmt.date(from: str) else { return "" }
+        let rel = RelativeDateTimeFormatter(); rel.unitsStyle = .abbreviated
+        return rel.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+struct NewJournalEntryView: View {
+    let moods: [(String, String, String)]
+    @Environment(\.dismiss) var dismiss
+    @State private var content = ""
+    @State private var selectedMood: String? = nil
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Mood selector
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(moods, id: \.0) { id, emoji, label in
+                            Button(action: { selectedMood = selectedMood == id ? nil : id }) {
+                                HStack(spacing: 6) {
+                                    Text(emoji)
+                                    Text(label).font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(selectedMood == id ? Color.accent : .secondary)
+                                }
+                                .padding(.horizontal, 12).padding(.vertical, 6)
+                                .background(selectedMood == id ? Color.accent.opacity(0.1) : Color(.secondarySystemBackground))
+                                .cornerRadius(20)
+                                .overlay(RoundedRectangle(cornerRadius: 20).stroke(selectedMood == id ? Color.accent : Color.clear, lineWidth: 1.5))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                }
+                Divider()
+                TextEditor(text: $content)
+                    .padding(16)
+                    .font(.system(size: 16)).lineSpacing(4)
+            }
+            .navigationTitle("New entry")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }.foregroundColor(.secondary)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: save) {
+                        if isSaving { ProgressView() }
+                        else { Text("Save").bold().foregroundColor(Color.accent) }
+                    }
+                    .disabled(content.isEmpty || isSaving)
+                }
+            }
+        }
+    }
+
+    func save() {
+        isSaving = true
+        Task {
+            var body: [String: Any] = ["content": content]
+            if let mood = selectedMood { body["mood"] = mood }
+            _ = try? await APIService.shared.request(path: "/api/journal", method: "POST", body: body) as CreateJournalResponse
+            await MainActor.run { dismiss() }
         }
     }
 }
@@ -1632,10 +1894,19 @@ struct ProfileView: View {
                             .padding(.bottom, 6)
 
                         VStack(spacing: 0) {
-                            PrefRow(icon: "book", label: "Prayer Journal") {
-                                // Navigate to journal - via web for now
-                                showEditJourney = true
+                            NavigationLink(destination: JournalView()) {
+                                HStack(spacing: 14) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 8).fill(Color.accent.opacity(0.12)).frame(width: 36, height: 36)
+                                        Image(systemName: "book").font(.system(size: 15)).foregroundColor(Color.accent)
+                                    }
+                                    Text("Prayer Journal").font(.system(size: 15)).foregroundColor(.primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.right").font(.system(size: 13)).foregroundColor(.secondary)
+                                }
+                                .padding(.horizontal, 14).padding(.vertical, 12)
                             }
+                            .buttonStyle(.plain)
                             Divider().padding(.leading, 54)
                             HStack(spacing: 14) {
                                 ZStack {

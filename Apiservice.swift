@@ -30,7 +30,7 @@ class APIService {
         return try decoder.decode(T.self, from: data)
     }
 
-    func streamChat(conversationId: Int, content: String) -> AsyncThrowingStream<String, Error> {
+    func streamChat(conversationId: Int, content: String, mood: String? = nil) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             Task {
                 guard let url = URL(string: "\(base)/api/conversations/\(conversationId)/messages") else {
@@ -39,7 +39,9 @@ class APIService {
                 var req = URLRequest(url: url)
                 req.httpMethod = "POST"
                 req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                req.httpBody = try? JSONSerialization.data(withJSONObject: ["content": content])
+                var bodyDict: [String: Any] = ["content": content]
+                if let mood = mood { bodyDict["mood"] = mood }
+                req.httpBody = try? JSONSerialization.data(withJSONObject: bodyDict)
                 do {
                     let (bytes, _) = try await session.bytes(for: req)
                     for try await line in bytes.lines {

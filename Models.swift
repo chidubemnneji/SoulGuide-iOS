@@ -184,3 +184,32 @@ let ARCHETYPE_DISPLAY: [String: (name: String, description: String)] = [
     "returning_prodigal": ("Returning Prodigal", "Coming home after time away"),
     "struggling_saint": ("Struggling Saint", "Faithful despite the doubts"),
 ]
+
+// MARK: - Journal
+struct JournalEntryFull: Codable, Identifiable {
+    let id: Int
+    let content: String
+    let mood: String?
+    let verseReference: String?
+    let verseText: String?
+    let createdAt: String
+}
+
+struct JournalListResponse: Codable {
+    let entries: [JournalEntryFull]
+}
+
+struct CreateJournalResponse: Codable {
+    let entry: JournalEntryFull
+}
+
+// MARK: - Recommendation Cards
+struct RecommendationCard: Codable, Identifiable {
+    let id: Int
+    let title: String
+    let description: String?
+    let practice: String?
+    let duration: String?
+    let iconName: String?
+    let completed: Bool?
+}
