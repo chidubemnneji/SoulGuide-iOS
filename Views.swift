@@ -1447,6 +1447,7 @@ struct ProfileView: View {
     @State private var persona: FullPersona?
     @State private var stats: UserStats?
     @State private var showEditJourney = false
+    @State private var showArchetypeInfo = false
 
     var struggle: String? {
         guard let s = persona?.primaryStruggle else { return nil }
@@ -1471,62 +1472,61 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
 
-                    // Avatar + name
-                    HStack(spacing: 14) {
+                    // ── Identity card ──
+                    HStack(spacing: 12) {
                         ZStack {
-                            Circle().fill(Color.brand.opacity(0.15)).frame(width: 60, height: 60)
+                            Circle().fill(Color.brand.opacity(0.15)).frame(width: 56, height: 56)
                             Text(auth.user?.initials ?? "?")
-                                .font(.system(size: 22, weight: .semibold)).foregroundColor(Color.brand)
+                                .font(.system(size: 20, weight: .semibold)).foregroundColor(Color.brand)
                         }
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(auth.user?.name ?? "").font(.system(size: 17, weight: .semibold))
-                            Text(auth.user?.email ?? "").font(.system(size: 13)).foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(auth.user?.name ?? "")
+                                .font(.system(size: 16, weight: .semibold)).lineLimit(1)
+                            Text(auth.user?.email ?? "")
+                                .font(.system(size: 12)).foregroundColor(.secondary).lineLimit(1)
                         }
                         Spacer()
-                    }
-                    .padding(16).background(Color(.secondarySystemBackground)).cornerRadius(16)
-
-                    // Stats row
-                    if let s = stats {
-                        HStack(spacing: 0) {
-                            StatCell(value: "\(s.conversationCount)", label: "Conversations")
-                            Divider().frame(height: 40)
-                            StatCell(value: "\(s.currentStreak)", label: "Day streak")
-                            Divider().frame(height: 40)
-                            StatCell(value: "\(s.longestStreak)", label: "Best streak")
+                        // Streak flame
+                        VStack(spacing: 2) {
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 16)).foregroundColor(Color.gold)
+                            Text("\(stats?.currentStreak ?? 0)")
+                                .font(.system(size: 18, weight: .bold)).foregroundColor(Color.gold)
+                            Text("days")
+                                .font(.system(size: 10)).foregroundColor(.secondary)
                         }
-                        .padding(.vertical, 14)
-                        .background(Color(.secondarySystemBackground)).cornerRadius(16)
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(Color.gold.opacity(0.08)).cornerRadius(12)
                     }
+                    .padding(14)
+                    .background(Color(.secondarySystemBackground)).cornerRadius(16)
 
-                    // Companion card
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text("YOUR COMPANION").font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
-                            Spacer()
-                        }
-                        Text(relationalDescription)
-                            .font(.system(size: 14)).foregroundColor(.primary).lineSpacing(3)
-                    }
-                    .padding(16).background(Color(.secondarySystemBackground)).cornerRadius(16)
-
-                    // Journey card
+                    // ── Your Journey ──
                     VStack(alignment: .leading, spacing: 0) {
-                        HStack {
-                            Text("YOUR JOURNEY").font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
-                            Spacer()
-                            Button("Edit") { showEditJourney = true }
-                                .font(.system(size: 13, weight: .medium)).foregroundColor(Color.gold)
-                        }.padding(.bottom, 8)
+                        Text("YOUR JOURNEY")
+                            .font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
+                            .padding(.bottom, 6)
 
                         VStack(alignment: .leading, spacing: 0) {
                             if let arch = archetype {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("ARCHETYPE").font(.system(size: 10, weight: .medium)).foregroundColor(.secondary)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text("ARCHETYPE").font(.system(size: 10, weight: .medium)).foregroundColor(.secondary)
+                                        Spacer()
+                                        Button(showArchetypeInfo ? "Less" : "What's this?") {
+                                            withAnimation { showArchetypeInfo.toggle() }
+                                        }
+                                        .font(.system(size: 11, weight: .medium)).foregroundColor(Color.gold)
+                                    }
                                     Text(arch.name).font(.system(size: 15, weight: .semibold))
                                     Text(arch.description).font(.system(size: 13)).foregroundColor(.secondary)
+                                    if showArchetypeInfo {
+                                        Text(archetypeExplainer(persona?.graceArchetype ?? ""))
+                                            .font(.system(size: 12)).foregroundColor(.secondary)
+                                            .lineSpacing(3).padding(.top, 4)
+                                    }
                                 }.padding(14)
                                 Divider().padding(.horizontal, 14)
                             }
@@ -1543,16 +1543,64 @@ struct ProfileView: View {
                                     FlexWrap(items: goals) { goal in
                                         Text(goal).font(.system(size: 12, weight: .medium))
                                             .padding(.horizontal, 10).padding(.vertical, 5)
-                                            .background(Color.gold.opacity(0.15))
-                                            .foregroundColor(Color.gold).cornerRadius(20)
+                                            .background(Color.brand.opacity(0.08))
+                                            .foregroundColor(Color.brand).cornerRadius(20)
                                     }
                                 }.padding(14)
+                                Divider().padding(.horizontal, 14)
                             }
+                            HStack {
+                                Text(relationalDescription)
+                                    .font(.system(size: 13)).foregroundColor(.secondary).italic()
+                                Spacer()
+                                Button("Edit →") { showEditJourney = true }
+                                    .font(.system(size: 13, weight: .medium)).foregroundColor(Color.gold)
+                            }.padding(14)
                         }
                         .background(Color(.secondarySystemBackground)).cornerRadius(16)
                     }
 
-                    // Log out
+                    // ── Progress ──
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("PROGRESS")
+                            .font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
+                            .padding(.bottom, 6)
+
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                            ProgressStatCard(value: "\(stats?.conversationCount ?? 0)", label: "Conversations")
+                            ProgressStatCard(value: "\(stats?.messageCount ?? 0)", label: "Messages sent")
+                            ProgressStatCard(value: "\(stats?.currentStreak ?? 0)", label: "Current streak")
+                            ProgressStatCard(value: "\(stats?.longestStreak ?? 0)", label: "Longest streak")
+                        }
+                    }
+
+                    // ── Preferences ──
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("PREFERENCES")
+                            .font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
+                            .padding(.bottom, 6)
+
+                        VStack(spacing: 0) {
+                            PrefRow(icon: "book", label: "Prayer Journal") {
+                                // Navigate to journal - via web for now
+                                showEditJourney = true
+                            }
+                            Divider().padding(.leading, 54)
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 8).fill(Color.gold.opacity(0.12)).frame(width: 36, height: 36)
+                                    Image(systemName: "bell").font(.system(size: 15)).foregroundColor(Color.gold)
+                                }
+                                Text("Daily reminder").font(.system(size: 15))
+                                Spacer()
+                                Text("Coming soon").font(.system(size: 13)).foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 14).padding(.vertical, 12)
+                        }
+                        .background(Color(.secondarySystemBackground)).cornerRadius(16)
+                    }
+
+                    // ── Log out ──
                     Button(action: { Task { await auth.logout() } }) {
                         HStack {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
@@ -1563,13 +1611,22 @@ struct ProfileView: View {
                         .background(Color(.secondarySystemBackground)).cornerRadius(16)
                     }
 
-                    Button(action: deleteAccount) {
-                        Text("Delete account and all data")
-                            .font(.system(size: 12)).foregroundColor(.secondary.opacity(0.5))
+                    VStack(spacing: 12) {
+                        Button(action: deleteAccount) {
+                            Text("Delete account and all data")
+                                .font(.system(size: 12)).foregroundColor(.secondary.opacity(0.5))
+                        }
+                        HStack(spacing: 12) {
+                            Text("Privacy").font(.system(size: 12)).foregroundColor(.secondary)
+                            Circle().fill(.secondary.opacity(0.4)).frame(width: 3, height: 3)
+                            Text("Terms").font(.system(size: 12)).foregroundColor(.secondary)
+                            Circle().fill(.secondary.opacity(0.4)).frame(width: 3, height: 3)
+                            Text("Help").font(.system(size: 12)).foregroundColor(.secondary)
+                        }
                     }
-                    .padding(.top, 4).padding(.bottom, 20)
+                    .padding(.bottom, 20)
                 }
-                .padding(.horizontal, 20).padding(.top, 16)
+                .padding(.horizontal, 16).padding(.top, 16)
             }
             .navigationTitle("Profile")
             .sheet(isPresented: $showEditJourney) {
@@ -1599,6 +1656,49 @@ struct ProfileView: View {
             _ = try? await APIService.shared.request(path: "/api/auth/account", method: "DELETE", body: [:]) as AuthResponse
             await auth.logout()
         }
+    }
+
+    func archetypeExplainer(_ key: String) -> String {
+        let map: [String: String] = [
+            "wounded_seeker": "You're carrying pain. Your companion meets you in that honesty rather than rushing you past it.",
+            "eager_builder": "You show up consistently and want to grow. Your companion helps you build with intention.",
+            "curious_explorer": "Questions drive you. Your companion engages your mind, not just your heart.",
+            "returning_prodigal": "You're finding your way back. Your companion doesn't make you earn trust back.",
+            "struggling_saint": "You've been faithful but it's hard right now. Your companion sits with you in that tension.",
+        ]
+        return map[key] ?? ""
+    }
+}
+
+struct ProgressStatCard: View {
+    let value: String; let label: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(value).font(.system(size: 28, weight: .bold)).foregroundColor(.primary)
+            Text(label).font(.system(size: 12)).foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color(.secondarySystemBackground)).cornerRadius(14)
+    }
+}
+
+struct PrefRow: View {
+    let icon: String; let label: String; let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8).fill(Color.gold.opacity(0.12)).frame(width: 36, height: 36)
+                    Image(systemName: icon).font(.system(size: 15)).foregroundColor(Color.gold)
+                }
+                Text(label).font(.system(size: 15)).foregroundColor(.primary)
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 13)).foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 12)
+        }
+        .buttonStyle(.plain)
     }
 }
 
