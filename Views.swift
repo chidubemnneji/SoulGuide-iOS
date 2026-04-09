@@ -898,6 +898,11 @@ struct HomeView: View {
                         }
                         .padding(16).background(Color(.secondarySystemBackground)).cornerRadius(16)
                     }
+
+                    // Streak card
+                    if let streak = greeting?.currentStreak {
+                        StreakCard(streak: streak)
+                    }
                 }
                 .padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 32)
             }
@@ -1038,7 +1043,60 @@ struct TaskCard: View {
     }
 }
 
-// MARK: - Devotional View (WebView)
+// MARK: - Streak Card
+struct StreakCard: View {
+    let streak: Int
+
+    var message: String {
+        if streak == 0 { return "Start your streak today. Every journey begins with one step." }
+        if streak == 1 { return "Day 1 complete. You showed up — that matters." }
+        if streak < 7 { return "You're building something real. Keep going." }
+        if streak < 14 { return "A whole week of showing up. That's not nothing." }
+        if streak < 30 { return "This is becoming a habit. God notices faithfulness." }
+        return "Your consistency is a form of worship. Keep it going."
+    }
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack {
+                HStack(spacing: 8) {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(Color.gold)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(streak)")
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundColor(Color.gold)
+                        Text(streak == 1 ? "day streak" : "day streak")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
+                // Flame stack
+                HStack(spacing: -4) {
+                    ForEach(0..<min(streak, 7), id: \.self) { i in
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.gold.opacity(Double(i + 1) / Double(min(streak, 7))))
+                    }
+                }
+            }
+            Text(message)
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+                .lineSpacing(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(16)
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.gold.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
 struct DevotionalView: View {
     var body: some View {
         SGWebView(path: "/devotional")
