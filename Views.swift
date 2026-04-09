@@ -52,21 +52,25 @@ struct FlameLogo: View {
 // MARK: - Welcome
 struct WelcomeView: View {
     @EnvironmentObject var auth: AuthViewModel
-    @State private var showOnboarding = false
-    @State private var showLogin = false
 
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 0) {
-                FlameLogo(size: 44).padding(.top, 60)
+                // Logo + wordmark
+                HStack(spacing: 10) {
+                    FlameLogo(size: 44)
+                    (Text("Soul").foregroundColor(.primary) + Text("Guide").foregroundColor(Color(hex: "C8A96E")))
+                        .font(.custom("Georgia", size: 22)).fontWeight(.bold)
+                }
+                .padding(.top, 60)
 
                 VStack(alignment: .leading, spacing: 12) {
                     Text("A companion\nfor your faith.")
-                        .font(.custom("Georgia", size: 36))
+                        .font(.custom("Georgia", size: 40))
                         .fontWeight(.bold)
                         .lineSpacing(4)
-                        .padding(.top, 28)
-                    Text("Wherever you are on your journey — doubting, searching, or simply tired — you don't have to walk it alone.")
+                        .padding(.top, 32)
+                    Text("Wherever you are on your journey, doubting, searching, or simply tired, you don't have to walk it alone.")
                         .font(.system(size: 16))
                         .foregroundColor(.secondary)
                         .lineSpacing(3)
@@ -76,7 +80,7 @@ struct WelcomeView: View {
                     FeatureRow(icon: "bubble.left.fill", title: "AI companion", subtitle: "Listens without judgment")
                     FeatureRow(icon: "book.fill", title: "Scripture", subtitle: "Matched to your moment")
                     FeatureRow(icon: "sparkles", title: "Personalised", subtitle: "Grows with you over time")
-                }.padding(.top, 32)
+                }.padding(.top, 28)
 
                 Spacer()
 
@@ -84,9 +88,10 @@ struct WelcomeView: View {
                     NavigationLink(destination: NativeOnboardingView(onComplete: {}).environmentObject(auth)) {
                         Text("Get started")
                             .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(.black)
                             .frame(maxWidth: .infinity).frame(height: 56)
-                            .background(Color.brand).cornerRadius(16)
+                            .background(Color(hex: "C8A96E"))
+                            .cornerRadius(16)
                     }
                     NavigationLink(destination: LoginView().environmentObject(auth)) {
                         Text("I already have an account")
@@ -108,10 +113,10 @@ struct FeatureRow: View {
         HStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.brand.opacity(0.1))
+                    .fill(Color(hex: "C8A96E").opacity(0.15))
                     .frame(width: 44, height: 44)
                 Image(systemName: icon)
-                    .foregroundColor(Color.brand)
+                    .foregroundColor(Color(hex: "C8A96E"))
                     .font(.system(size: 18))
             }
             VStack(alignment: .leading, spacing: 2) {
