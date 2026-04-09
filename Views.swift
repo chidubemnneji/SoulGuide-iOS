@@ -260,9 +260,8 @@ struct NativeOnboardingView: View {
             else if step == 1 { phase2 }
             else if step == 2 { phase3 }
             else { phase4 }
-
-            Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemBackground))
         .ignoresSafeArea(edges: .top)
         .animation(.easeInOut(duration: 0.3), value: step)
