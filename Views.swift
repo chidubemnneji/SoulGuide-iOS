@@ -654,15 +654,35 @@ struct PasswordStrength: View {
 struct PostOnboardingView: View {
     @EnvironmentObject var auth: AuthViewModel
     @State private var showMeetPartner = false
+    @State private var showFirstChat = false
 
     var body: some View {
-        if showMeetPartner {
-            MeetPartnerView()
-                .environmentObject(auth)
-        } else {
-            TransitionWebView(onContinue: {
-                withAnimation { showMeetPartner = true }
-            })
+        NavigationStack {
+            ZStack {
+                if showFirstChat {
+                    NativeChatView(conversationId: nil, openingMode: "first_chat")
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Done") {
+                                    Task { await auth.refreshUser() }
+                                }
+                                .foregroundColor(Color.accent)
+                            }
+                        }
+                } else if showMeetPartner {
+                    MeetPartnerWebViewRepresentable(onStart: {
+                        withAnimation { showFirstChat = true }
+                    })
+                    .ignoresSafeArea()
+                    .navigationBarHidden(true)
+                } else {
+                    TransitionWebViewRepresentable(onContinue: {
+                        withAnimation { showMeetPartner = true }
+                    })
+                    .ignoresSafeArea()
+                    .navigationBarHidden(true)
+                }
+            }
         }
     }
 }
@@ -717,29 +737,11 @@ struct TransitionWebViewRepresentable: UIViewRepresentable {
 
 struct MeetPartnerView: View {
     @EnvironmentObject var auth: AuthViewModel
-    @State private var navigateToFirstChat = false
+    var onStart: () -> Void
 
     var body: some View {
-        ZStack {
-            MeetPartnerWebViewRepresentable(onStart: {
-                navigateToFirstChat = true
-            })
+        MeetPartnerWebViewRepresentable(onStart: onStart)
             .ignoresSafeArea()
-
-            // Hidden navigation trigger
-            NavigationLink(
-                destination: NativeChatView(conversationId: nil, openingMode: "first_chat")
-                    .navigationBarBackButtonHidden(true),
-                isActive: $navigateToFirstChat
-            ) { EmptyView() }
-        }
-        .navigationBarHidden(true)
-        .onChange(of: navigateToFirstChat) { _, active in
-            if !active {
-                // Once they've navigated away, refresh and go to main app
-                Task { await auth.refreshUser() }
-            }
-        }
     }
 }
 
