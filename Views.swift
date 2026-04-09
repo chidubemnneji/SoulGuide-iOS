@@ -1620,9 +1620,7 @@ struct JournalView: View {
     func deleteEntry(at offsets: IndexSet) {
         for i in offsets {
             let id = entries[i].id
-            Task {
-                _ = try? await APIService.shared.request(path: "/api/journal/\(id)", method: "DELETE", body: [:]) as JournalListResponse
-            }
+            Task { try? await APIService.shared.requestVoid(path: "/api/journal/\(id)") }
         }
         entries.remove(atOffsets: offsets)
     }
@@ -1689,12 +1687,20 @@ struct NewJournalEntryView: View {
     }
 
     func save() {
+        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         isSaving = true
         Task {
-            var body: [String: Any] = ["content": content]
-            if let mood = selectedMood { body["mood"] = mood }
-            _ = try? await APIService.shared.request(path: "/api/journal", method: "POST", body: body) as CreateJournalResponse
-            await MainActor.run { dismiss() }
+            do {
+                var body: [String: Any] = ["content": content.trimmingCharacters(in: .whitespacesAndNewlines)]
+                if let mood = selectedMood { body["mood"] = mood }
+                let _: CreateJournalResponse = try await APIService.shared.request(
+                    path: "/api/journal", method: "POST", body: body
+                )
+                await MainActor.run { dismiss() }
+            } catch {
+                print("Journal save error: \(error)")
+                await MainActor.run { isSaving = false }
+            }
         }
     }
 }

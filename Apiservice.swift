@@ -73,3 +73,14 @@ enum APIError: LocalizedError {
         }
     }
 }
+
+    func requestVoid(path: String, method: String = "DELETE") async throws {
+        guard let url = URL(string: base + path) else { throw APIError.invalidURL }
+        var req = URLRequest(url: url)
+        req.httpMethod = method
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let (_, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        if http.statusCode == 401 { throw APIError.unauthorized }
+        if http.statusCode >= 400 { throw APIError.serverError(http.statusCode) }
+    }

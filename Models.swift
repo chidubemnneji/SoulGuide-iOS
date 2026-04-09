@@ -188,8 +188,11 @@ let ARCHETYPE_DISPLAY: [String: (name: String, description: String)] = [
 // MARK: - Journal
 struct JournalEntryFull: Codable, Identifiable {
     let id: Int
+    let userId: Int?
     let content: String
+    let title: String?
     let mood: String?
+    let tags: [String]?
     let verseReference: String?
     let verseText: String?
     let createdAt: String
