@@ -17,6 +17,12 @@ extension Color {
     }
     static let brand = Color(hex: "7C6AC7")
     static let gold = Color(hex: "C8A96E")
+    // Adaptive accent: gold in dark mode, purple in light mode
+    static let accent = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 200/255, green: 169/255, blue: 110/255, alpha: 1) // gold
+            : UIColor(red: 124/255, green: 106/255, blue: 199/255, alpha: 1) // purple
+    })
 }
 
 // MARK: - Splash
@@ -252,7 +258,7 @@ struct NativeOnboardingView: View {
             HStack(spacing: 6) {
                 ForEach(0..<totalSteps, id: \.self) { i in
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(i <= step ? Color.gold : Color.gold.opacity(0.2))
+                        .fill(i <= step ? Color.accent : Color.accent.opacity(0.2))
                         .frame(height: 3)
                 }
             }
@@ -823,11 +829,11 @@ struct HomeView: View {
                         Spacer()
                         if let streak = greeting?.currentStreak, streak > 0 {
                             HStack(spacing: 4) {
-                                Image(systemName: "flame.fill").font(.system(size: 12)).foregroundColor(Color.gold)
-                                Text("\(streak) day streak").font(.system(size: 13, weight: .semibold)).foregroundColor(Color.gold)
+                                Image(systemName: "flame.fill").font(.system(size: 12)).foregroundColor(Color.accent)
+                                Text("\(streak) day streak").font(.system(size: 13, weight: .semibold)).foregroundColor(Color.accent)
                             }
                             .padding(.horizontal, 12).padding(.vertical, 6)
-                            .background(Color.gold.opacity(0.15)).cornerRadius(20)
+                            .background(Color.accent.opacity(0.15)).cornerRadius(20)
                         }
                         Spacer()
                         Button(action: { showNotifications = true }) {
@@ -865,7 +871,7 @@ struct HomeView: View {
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
                                 RoundedRectangle(cornerRadius: 3).fill(Color(.systemGray5)).frame(height: 5)
-                                RoundedRectangle(cornerRadius: 3).fill(Color.gold)
+                                RoundedRectangle(cornerRadius: 3).fill(Color.accent)
                                     .frame(width: geo.size.width * progressPercent, height: 5)
                                     .animation(.easeInOut, value: progressPercent)
                             }
@@ -887,14 +893,14 @@ struct HomeView: View {
                     if let d = devotional, let ref = d.scriptureReference {
                         VStack(alignment: .leading, spacing: 10) {
                             HStack(spacing: 6) {
-                                Image(systemName: "book.fill").font(.system(size: 11)).foregroundColor(Color.gold)
-                                Text("VERSE OF THE DAY").font(.system(size: 11, weight: .semibold)).foregroundColor(Color.gold)
+                                Image(systemName: "book.fill").font(.system(size: 11)).foregroundColor(Color.accent)
+                                Text("VERSE OF THE DAY").font(.system(size: 11, weight: .semibold)).foregroundColor(Color.accent)
                             }
                             if let text = d.scriptureText {
                                 Text("\u{201C}\(text)\u{201D}")
                                     .font(.custom("Georgia", size: 16)).italic().lineSpacing(3)
                             }
-                            Text(ref).font(.system(size: 13, weight: .medium)).foregroundColor(Color.gold)
+                            Text(ref).font(.system(size: 13, weight: .medium)).foregroundColor(Color.accent)
                         }
                         .padding(16).background(Color(.secondarySystemBackground)).cornerRadius(16)
                     }
@@ -983,7 +989,7 @@ struct WeekCalendarView: View {
                         Circle()
                             .fill(
                                 day.isComplete ? Color.brand.opacity(0.15) :
-                                day.isToday ? Color.gold :
+                                day.isToday ? Color.accent :
                                 Color.clear
                             )
                             .frame(width: 36, height: 36)
@@ -1022,8 +1028,8 @@ struct TaskCard: View {
             HStack(spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(isCompleted ? Color.gold : Color(.systemGray4), lineWidth: 2)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(isCompleted ? Color.gold : Color.clear))
+                        .strokeBorder(isCompleted ? Color.accent : Color(.systemGray4), lineWidth: 2)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(isCompleted ? Color.accent : Color.clear))
                         .frame(width: 32, height: 32)
                     if isCompleted {
                         Image(systemName: "checkmark").font(.system(size: 13, weight: .semibold)).foregroundColor(.white)
@@ -1069,11 +1075,11 @@ struct StreakCard: View {
                 HStack(spacing: 8) {
                     Image(systemName: "flame.fill")
                         .font(.system(size: 28))
-                        .foregroundColor(Color.gold)
+                        .foregroundColor(Color.accent)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(streak)")
                             .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(Color.gold)
+                            .foregroundColor(Color.accent)
                         Text(streak == 1 ? "day streak" : "day streak")
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
@@ -1085,7 +1091,7 @@ struct StreakCard: View {
                     ForEach(0..<min(streak, 7), id: \.self) { i in
                         Image(systemName: "flame.fill")
                             .font(.system(size: 14))
-                            .foregroundColor(Color.gold.opacity(Double(i + 1) / Double(min(streak, 7))))
+                            .foregroundColor(Color.accent.opacity(Double(i + 1) / Double(min(streak, 7))))
                     }
                 }
             }
@@ -1100,7 +1106,7 @@ struct StreakCard: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gold.opacity(0.2), lineWidth: 1)
+                .stroke(Color.accent.opacity(0.2), lineWidth: 1)
         )
     }
 }
@@ -1131,7 +1137,7 @@ struct ChatListView: View {
                             Text("Start a conversation")
                                 .font(.system(size: 15, weight: .medium)).foregroundColor(.white)
                                 .padding(.horizontal, 24).padding(.vertical, 12)
-                                .background(Color.gold).cornerRadius(12)
+                                .background(Color.accent).cornerRadius(12)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1255,7 +1261,7 @@ struct NativeChatView: View {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
                         .frame(width: 36, height: 36)
-                        .background(input.isEmpty || isStreaming ? Color.secondary : Color.gold)
+                        .background(input.isEmpty || isStreaming ? Color.secondary : Color.accent)
                         .clipShape(Circle())
                 }
                 .disabled(input.isEmpty || isStreaming)
@@ -1498,14 +1504,14 @@ struct ProfileView: View {
                         // Streak flame
                         VStack(spacing: 2) {
                             Image(systemName: "flame.fill")
-                                .font(.system(size: 16)).foregroundColor(Color.gold)
+                                .font(.system(size: 16)).foregroundColor(Color.accent)
                             Text("\(stats?.currentStreak ?? 0)")
-                                .font(.system(size: 18, weight: .bold)).foregroundColor(Color.gold)
+                                .font(.system(size: 18, weight: .bold)).foregroundColor(Color.accent)
                             Text("days")
                                 .font(.system(size: 10)).foregroundColor(.secondary)
                         }
                         .padding(.horizontal, 12).padding(.vertical, 8)
-                        .background(Color.gold.opacity(0.08)).cornerRadius(12)
+                        .background(Color.accent.opacity(0.08)).cornerRadius(12)
                     }
                     .padding(14)
                     .background(Color(.secondarySystemBackground)).cornerRadius(16)
@@ -1525,7 +1531,7 @@ struct ProfileView: View {
                                         Button(showArchetypeInfo ? "Less" : "What's this?") {
                                             withAnimation { showArchetypeInfo.toggle() }
                                         }
-                                        .font(.system(size: 11, weight: .medium)).foregroundColor(Color.gold)
+                                        .font(.system(size: 11, weight: .medium)).foregroundColor(Color.accent)
                                     }
                                     Text(arch.name).font(.system(size: 15, weight: .semibold))
                                     Text(arch.description).font(.system(size: 13)).foregroundColor(.secondary)
@@ -1561,7 +1567,7 @@ struct ProfileView: View {
                                     .font(.system(size: 13)).foregroundColor(.secondary).italic()
                                 Spacer()
                                 Button("Edit →") { showEditJourney = true }
-                                    .font(.system(size: 13, weight: .medium)).foregroundColor(Color.gold)
+                                    .font(.system(size: 13, weight: .medium)).foregroundColor(Color.accent)
                             }.padding(14)
                         }
                         .background(Color(.secondarySystemBackground)).cornerRadius(16)
@@ -1595,8 +1601,8 @@ struct ProfileView: View {
                             Divider().padding(.leading, 54)
                             HStack(spacing: 14) {
                                 ZStack {
-                                    RoundedRectangle(cornerRadius: 8).fill(Color.gold.opacity(0.12)).frame(width: 36, height: 36)
-                                    Image(systemName: "bell").font(.system(size: 15)).foregroundColor(Color.gold)
+                                    RoundedRectangle(cornerRadius: 8).fill(Color.accent.opacity(0.12)).frame(width: 36, height: 36)
+                                    Image(systemName: "bell").font(.system(size: 15)).foregroundColor(Color.accent)
                                 }
                                 Text("Daily reminder").font(.system(size: 15))
                                 Spacer()
@@ -1696,8 +1702,8 @@ struct PrefRow: View {
         Button(action: action) {
             HStack(spacing: 14) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 8).fill(Color.gold.opacity(0.12)).frame(width: 36, height: 36)
-                    Image(systemName: icon).font(.system(size: 15)).foregroundColor(Color.gold)
+                    RoundedRectangle(cornerRadius: 8).fill(Color.accent.opacity(0.12)).frame(width: 36, height: 36)
+                    Image(systemName: icon).font(.system(size: 15)).foregroundColor(Color.accent)
                 }
                 Text(label).font(.system(size: 15)).foregroundColor(.primary)
                 Spacer()
@@ -1713,7 +1719,7 @@ struct StatCell: View {
     let value: String; let label: String
     var body: some View {
         VStack(spacing: 4) {
-            Text(value).font(.system(size: 22, weight: .bold)).foregroundColor(Color.gold)
+            Text(value).font(.system(size: 22, weight: .bold)).foregroundColor(Color.accent)
             Text(label).font(.system(size: 11)).foregroundColor(.secondary)
         }.frame(maxWidth: .infinity)
     }
@@ -1849,7 +1855,7 @@ struct SGButton: View {
             }
         }
         .frame(maxWidth: .infinity).frame(height: 54)
-        .background(disabled || isLoading ? Color.gold.opacity(0.4) : Color.gold)
+        .background(disabled || isLoading ? Color.accent.opacity(0.4) : Color.accent)
         .cornerRadius(14)
         .disabled(disabled || isLoading)
     }
