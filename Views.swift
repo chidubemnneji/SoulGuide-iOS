@@ -817,6 +817,7 @@ struct HomeView: View {
     @State private var showNotifications = false
     @State private var navigateToChat = false
     @State private var navigateToDevotional = false
+    @State private var navigateToJournal = false
 
     var struggle: String? {
         guard let s = persona?.primaryStruggle else { return nil }
@@ -827,6 +828,7 @@ struct HomeView: View {
         ("soul-checkin", "Soul Check-In", "A personalized reflection based on your journey", "2m"),
         ("gods-message", "God's Message", devotional?.scriptureReference ?? "Today's verse", "1m"),
         ("devotional-prayer", "Daily Devotional & Prayer", devotional?.title ?? "Finding Peace in the Present", "5m"),
+        ("prayer-journal", "Reflect & Journal", "Record your thoughts and prayers", "3m"),
     ]}
 
     var progressPercent: Double {
@@ -902,8 +904,11 @@ struct HomeView: View {
                         ForEach(tasks, id: \.id) { task in
                             TaskCard(task: task, isCompleted: completedTaskIds.contains(task.id)) {
                                 completedTaskIds.insert(task.id)
-                                if task.id == "soul-checkin" { navigateToChat = true }
-                                else { navigateToDevotional = true }
+                                switch task.id {
+                                case "soul-checkin": navigateToChat = true
+                                case "prayer-journal": navigateToJournal = true
+                                default: navigateToDevotional = true
+                                }
                             }
                         }
                     }
@@ -932,8 +937,9 @@ struct HomeView: View {
                 .padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 32)
             }
             .navigationBarHidden(true)
-            .navigationDestination(isPresented: $navigateToChat) { NativeChatView(conversationId: nil) }
+            .navigationDestination(isPresented: $navigateToChat) { NativeChatView(conversationId: nil, openingMode: "checkin") }
             .navigationDestination(isPresented: $navigateToDevotional) { DevotionalView() }
+            .navigationDestination(isPresented: $navigateToJournal) { JournalView() }
             .sheet(isPresented: $showNotifications) { NotificationsView() }
         }
         .task { await loadData() }
