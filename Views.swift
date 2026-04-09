@@ -809,10 +809,15 @@ struct WeekCalendarView: View {
     var days: [(letter: String, date: Int, isToday: Bool, isComplete: Bool, isFuture: Bool)] {
         let cal = Calendar.current
         let today = Date()
-        let weekStart = cal.date(from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
         let fmt = DateFormatter(); fmt.dateFormat = "yyyy-MM-dd"
         let joinDate = joinedAt.flatMap { fmt.date(from: String($0.prefix(10))) }
-        let dayLetters = ["S","M","T","W","T","F","S"]
+
+        // Get Monday of current week
+        var comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)
+        comps.weekday = 2 // Monday
+        let weekStart = cal.date(from: comps) ?? today
+
+        let dayLetters = ["M","T","W","T","F","S","S"]
 
         return (0..<7).map { i in
             let date = cal.date(byAdding: .day, value: i, to: weekStart)!
@@ -821,7 +826,7 @@ struct WeekCalendarView: View {
             let isFuture = date > today && !isToday
             let isBeforeJoin = joinDate.map { date < $0 } ?? false
             return (
-                letter: dayLetters[cal.component(.weekday, from: date) - 1],
+                letter: dayLetters[i],
                 date: cal.component(.day, from: date),
                 isToday: isToday,
                 isComplete: completedDays.contains(key) && !isBeforeJoin,
@@ -1109,18 +1114,61 @@ struct MessageBubble: View {
 // MARK: - Bible (WebView)
 struct BibleView: View {
     @State private var navigateToChat = false
+    @State private var chatPath = ""
 
     var body: some View {
         NavigationStack {
-            SGWebView(path: "/bible") { path in
-                if path.hasPrefix("/chat") { navigateToChat = true }
-            }
+            BibleWebViewRepresentable(onChatNavigate: { path in
+                chatPath = path
+                navigateToChat = true
+            })
             .ignoresSafeArea(edges: .bottom)
             .navigationTitle("Word")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: $navigateToChat) {
                 NativeChatView(conversationId: nil)
             }
+        }
+    }
+}
+
+struct BibleWebViewRepresentable: UIViewRepresentable {
+    var onChatNavigate: (String) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onChatNavigate: onChatNavigate) }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = WKWebsiteDataStore.default()
+        config.defaultWebpagePreferences.allowsContentJavaScript = true
+        config.allowsInlineMediaPlayback = true
+
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
+        webView.overrideUserInterfaceStyle = .light
+        webView.scrollView.bounces = true
+
+        guard let url = URL(string: "https://spirit-guide-ai-production.up.railway.app/bible?nativeApp=1") else { return webView }
+        webView.load(URLRequest(url: url))
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {}
+
+    class Coordinator: NSObject, WKNavigationDelegate {
+        var onChatNavigate: (String) -> Void
+        init(onChatNavigate: @escaping (String) -> Void) { self.onChatNavigate = onChatNavigate }
+
+        func webView(_ webView: WKWebView,
+                     decidePolicyFor action: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            if let url = action.request.url,
+               url.path.hasPrefix("/chat") {
+                decisionHandler(.cancel)
+                DispatchQueue.main.async { self.onChatNavigate(url.path) }
+                return
+            }
+            decisionHandler(.allow)
         }
     }
 }
