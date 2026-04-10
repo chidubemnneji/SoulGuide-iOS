@@ -946,20 +946,22 @@ struct HomeView: View {
     }
 
     func loadData() async {
-        if let gr = try? await APIService.shared.request(path: "/api/devotional/greeting") as GreetingResponse {
-            greeting = gr.data
-        }
-        if let dr = try? await APIService.shared.request(path: "/api/devotional/today") as DevotionalResponse {
+        async let greetingReq: GreetingResponse? = try? APIService.shared.request(path: "/api/devotional/greeting")
+        async let devotionalReq: DevotionalResponse? = try? APIService.shared.request(path: "/api/devotional/today")
+        async let personaReq: Persona? = try? APIService.shared.request(path: "/api/persona")
+        async let notificationsReq: NotificationsResponse? = try? APIService.shared.request(path: "/api/notifications")
+        async let journeyReq: JourneyResponse? = try? APIService.shared.request(path: "/api/devotional/journey")
+
+        let (gr, dr, p, n, jr) = await (greetingReq, devotionalReq, personaReq, notificationsReq, journeyReq)
+
+        if let gr { greeting = gr.data }
+        if let dr {
             devotional = dr.data
             if let c = dr.completedTaskIds { completedTaskIds = Set(c) }
         }
-        if let p = try? await APIService.shared.request(path: "/api/persona") as Persona { persona = p }
-        if let n = try? await APIService.shared.request(path: "/api/notifications") as NotificationsResponse {
-            unreadCount = n.unreadCount
-        }
-        if let jr = try? await APIService.shared.request(path: "/api/devotional/journey") as JourneyResponse {
-            completedDays = jr.data?.compactMap { $0.completedAt }.map { String($0.prefix(10)) } ?? []
-        }
+        if let p { persona = p }
+        if let n { unreadCount = n.unreadCount }
+        if let jr { completedDays = jr.data?.compactMap { $0.completedAt }.map { String($0.prefix(10)) } ?? [] }
     }
 }
 
@@ -1981,8 +1983,11 @@ struct ProfileView: View {
     }
 
     func loadData() async {
-        persona = try? await APIService.shared.request(path: "/api/persona")
-        stats = try? await APIService.shared.request(path: "/api/user/stats")
+        async let personaReq: FullPersona? = try? APIService.shared.request(path: "/api/persona")
+        async let statsReq: UserStats? = try? APIService.shared.request(path: "/api/user/stats")
+        let (p, s) = await (personaReq, statsReq)
+        persona = p
+        stats = s
     }
 
     func deleteAccount() {
