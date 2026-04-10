@@ -1610,7 +1610,7 @@ struct JournalView: View {
                 }
             }
             .sheet(isPresented: $showNew, onDismiss: { Task { await load() } }) {
-                NewJournalEntryView(moods: moods)
+                NavigationStack { NewJournalEntryView(moods: moods) }
             }
         }
         .task { await load() }
