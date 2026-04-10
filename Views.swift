@@ -514,7 +514,9 @@ struct NativeOnboardingView: View {
                         method: "POST",
                         body: body
                     )
-                    await auth.refreshUser()
+                    // Don't refreshUser here — PostOnboardingView will do it
+                    // after the transition screens, so isOnboarded stays false
+                    // and we can show the transition flow first
                     await MainActor.run {
                         isLoading = false
                         onComplete()

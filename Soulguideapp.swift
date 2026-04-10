@@ -23,14 +23,15 @@ struct RootView: View {
                 SplashView()
             } else if !auth.isAuthenticated {
                 WelcomeView()
+            } else if showTransition {
+                // Show transition screens after onboarding, before entering main app
+                PostOnboardingView(onComplete: {
+                    showTransition = false
+                })
+                .environmentObject(auth)
             } else if !auth.isOnboarded {
                 NativeOnboardingView(onComplete: {
                     showTransition = true
-                })
-                .environmentObject(auth)
-            } else if showTransition {
-                PostOnboardingView(onComplete: {
-                    showTransition = false
                 })
                 .environmentObject(auth)
             } else {
