@@ -653,6 +653,7 @@ struct PasswordStrength: View {
 // MARK: - Post Onboarding Transition
 struct PostOnboardingView: View {
     @EnvironmentObject var auth: AuthViewModel
+    var onComplete: () -> Void = {}
     @State private var showMeetPartner = false
     @State private var showFirstChat = false
 
@@ -664,7 +665,10 @@ struct PostOnboardingView: View {
                         .toolbar {
                             ToolbarItem(placement: .topBarTrailing) {
                                 Button("Done") {
-                                    Task { await auth.refreshUser() }
+                                    Task {
+                                        await auth.refreshUser()
+                                        await MainActor.run { onComplete() }
+                                    }
                                 }
                                 .foregroundColor(Color.accent)
                             }
@@ -1730,6 +1734,7 @@ struct BibleView: View {
 
 struct BibleWebViewRepresentable: UIViewRepresentable {
     var onChatNavigate: (String) -> Void
+    @Environment(\.colorScheme) var colorScheme
 
     func makeCoordinator() -> Coordinator { Coordinator(onChatNavigate: onChatNavigate) }
 
@@ -1742,13 +1747,24 @@ struct BibleWebViewRepresentable: UIViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.scrollView.bounces = true
+        // Follow system dark/light mode
+        webView.overrideUserInterfaceStyle = .unspecified
 
-        guard let url = URL(string: "https://spirit-guide-ai-production.up.railway.app/bible?nativeApp=1") else { return webView }
+        let isDark = UITraitCollection.current.userInterfaceStyle == .dark
+        let theme = isDark ? "dark" : "light"
+        guard let url = URL(string: "https://spirit-guide-ai-production.up.railway.app/bible?nativeApp=1&theme=\(theme)") else { return webView }
         webView.load(URLRequest(url: url))
         return webView
     }
 
-    func updateUIView(_ webView: WKWebView, context: Context) {}
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        // Re-inject theme when system changes
+        let isDark = colorScheme == .dark
+        webView.evaluateJavaScript("""
+            document.documentElement.classList.toggle('dark', \(isDark));
+            document.documentElement.classList.toggle('light', \(!isDark));
+        """)
+    }
 
     class Coordinator: NSObject, WKNavigationDelegate {
         var onChatNavigate: (String) -> Void

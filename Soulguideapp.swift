@@ -29,9 +29,10 @@ struct RootView: View {
                 })
                 .environmentObject(auth)
             } else if showTransition {
-                PostOnboardingView()
-                    .environmentObject(auth)
-                    .onAppear { showTransition = false }
+                PostOnboardingView(onComplete: {
+                    showTransition = false
+                })
+                .environmentObject(auth)
             } else {
                 MainTabView()
                     .environmentObject(auth)
