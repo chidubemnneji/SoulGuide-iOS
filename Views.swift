@@ -1734,7 +1734,6 @@ struct BibleView: View {
 
 struct BibleWebViewRepresentable: UIViewRepresentable {
     var onChatNavigate: (String) -> Void
-    @Environment(\.colorScheme) var colorScheme
 
     func makeCoordinator() -> Coordinator { Coordinator(onChatNavigate: onChatNavigate) }
 
@@ -1747,19 +1746,15 @@ struct BibleWebViewRepresentable: UIViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.scrollView.bounces = true
-        // Follow system dark/light mode
         webView.overrideUserInterfaceStyle = .unspecified
 
-        let isDark = UITraitCollection.current.userInterfaceStyle == .dark
-        let theme = isDark ? "dark" : "light"
-        guard let url = URL(string: "https://spirit-guide-ai-production.up.railway.app/bible?nativeApp=1&theme=\(theme)") else { return webView }
+        guard let url = URL(string: "https://spirit-guide-ai-production.up.railway.app/bible?nativeApp=1") else { return webView }
         webView.load(URLRequest(url: url))
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // Re-inject theme when system changes
-        let isDark = colorScheme == .dark
+        let isDark = UITraitCollection.current.userInterfaceStyle == .dark
         webView.evaluateJavaScript("""
             document.documentElement.classList.toggle('dark', \(isDark));
             document.documentElement.classList.toggle('light', \(!isDark));
@@ -1769,6 +1764,14 @@ struct BibleWebViewRepresentable: UIViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate {
         var onChatNavigate: (String) -> Void
         init(onChatNavigate: @escaping (String) -> Void) { self.onChatNavigate = onChatNavigate }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            let isDark = UITraitCollection.current.userInterfaceStyle == .dark
+            webView.evaluateJavaScript("""
+                document.documentElement.classList.toggle('dark', \(isDark));
+                document.documentElement.classList.toggle('light', \(!isDark));
+            """)
+        }
 
         func webView(_ webView: WKWebView,
                      decidePolicyFor action: WKNavigationAction,
