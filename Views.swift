@@ -676,16 +676,14 @@ struct PostOnboardingView: View {
                             }
                         }
                 } else if showMeetPartner {
-                    MeetPartnerWebViewRepresentable(onStart: {
+                    NativeMeetPartnerView(onStart: {
                         withAnimation { showFirstChat = true }
                     })
-                    .ignoresSafeArea()
                     .navigationBarHidden(true)
                 } else {
-                    TransitionWebViewRepresentable(onContinue: {
+                    NativeTransitionView(onContinue: {
                         withAnimation { showMeetPartner = true }
                     })
-                    .ignoresSafeArea()
                     .navigationBarHidden(true)
                 }
             }
@@ -693,12 +691,169 @@ struct PostOnboardingView: View {
     }
 }
 
-struct TransitionWebView: View {
+// MARK: - Native Transition Screen (Your space is ready)
+struct NativeTransitionView: View {
     var onContinue: () -> Void
+    @EnvironmentObject var auth: AuthViewModel
 
     var body: some View {
-        TransitionWebViewRepresentable(onContinue: onContinue)
-            .ignoresSafeArea()
+        ZStack {
+            Color(.systemBackground).ignoresSafeArea()
+            VStack(spacing: 32) {
+                Spacer()
+                // Checkmark
+                ZStack {
+                    Circle()
+                        .fill(Color.brand.opacity(0.12))
+                        .frame(width: 88, height: 88)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 36, weight: .medium))
+                        .foregroundColor(Color.brand)
+                }
+                VStack(spacing: 12) {
+                    Text("Your space is ready!")
+                        .font(.system(size: 28, weight: .bold))
+                        .multilineTextAlignment(.center)
+                    Text("Your journey has been set up and personalized.")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+                // Verse card
+                VStack(spacing: 8) {
+                    Text("\"I am the way, the truth, and the life.\"")
+                        .font(.system(size: 17, weight: .regular, design: .serif))
+                        .italic()
+                        .multilineTextAlignment(.center)
+                    Text("John 14:6")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+                .padding(24)
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(16)
+                .padding(.horizontal, 32)
+                // Feature pills
+                VStack(spacing: 12) {
+                    ForEach(["Personalized guidance", "Daily devotionals", "Scripture-based support"], id: \.self) { item in
+                        HStack(spacing: 10) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.brand)
+                            Text(item)
+                                .font(.system(size: 15))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                Spacer()
+                VStack(spacing: 12) {
+                    Button(action: onContinue) {
+                        Text("Start Your Journey")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Color.brand)
+                            .cornerRadius(14)
+                    }
+                    .padding(.horizontal, 24)
+                    Text("Your companion is AI. It listens well but is not a therapist, pastor, or crisis service.")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+                .padding(.bottom, 40)
+            }
+        }
+    }
+}
+
+// MARK: - Native Meet Partner Screen
+struct NativeMeetPartnerView: View {
+    var onStart: () -> Void
+    @EnvironmentObject var auth: AuthViewModel
+
+    var features: [(icon: String, title: String, body: String)] {
+        let struggle = auth.user?.primaryStruggle?.replacingOccurrences(of: "_", with: " ") ?? "your struggles"
+        return [
+            ("bubble.left.fill", "Knows Your Journey", "Every conversation builds on what I already know about your \(struggle) and your goals."),
+            ("clock.fill", "Always Available", "3 AM and can't sleep? Triggered and need help NOW? I'm here. No judgment. No waiting."),
+            ("book.fill", "Biblically Grounded", "Every answer is rooted in Scripture. I'll guide you with God's truth, not my opinions."),
+        ]
+    }
+
+    var body: some View {
+        ZStack {
+            Color(.systemBackground).ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 0) {
+                // Icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.secondarySystemBackground))
+                        .frame(width: 56, height: 56)
+                    Image(systemName: "bubble.left.and.bubble.right")
+                        .font(.system(size: 24))
+                        .foregroundColor(Color.brand)
+                }
+                .padding(.top, 60)
+                .padding(.horizontal, 28)
+                .padding(.bottom, 24)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Meet Your Personal Prayer Partner")
+                        .font(.system(size: 28, weight: .bold))
+                    Text("I know your story. I know your struggles. I'm here 24/7 to guide you closer to God.")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 28)
+                .padding(.bottom, 32)
+
+                VStack(spacing: 16) {
+                    ForEach(features, id: \.title) { f in
+                        HStack(alignment: .top, spacing: 16) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color(.secondarySystemBackground))
+                                    .frame(width: 44, height: 44)
+                                Image(systemName: f.icon)
+                                    .font(.system(size: 18))
+                                    .foregroundColor(Color.brand.opacity(0.7))
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(f.title)
+                                    .font(.system(size: 15, weight: .semibold))
+                                Text(f.body)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .padding(16)
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(14)
+                    }
+                }
+                .padding(.horizontal, 20)
+
+                Spacer()
+
+                Button(action: onStart) {
+                    Text("Start Your First Conversation")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color(.label))
+                        .cornerRadius(14)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
+            }
+        }
     }
 }
 

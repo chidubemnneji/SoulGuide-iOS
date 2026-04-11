@@ -15,7 +15,8 @@ struct SoulGuideApp: App {
 
 struct RootView: View {
     @EnvironmentObject var auth: AuthViewModel
-    @State private var showTransition = false
+    // Persists across app restarts so we don't loop back into onboarding
+    @AppStorage("showTransition") private var showTransition = false
 
     var body: some View {
         Group {
@@ -24,7 +25,6 @@ struct RootView: View {
             } else if !auth.isAuthenticated {
                 WelcomeView()
             } else if showTransition {
-                // Show transition screens after onboarding, before entering main app
                 PostOnboardingView(onComplete: {
                     showTransition = false
                 })
