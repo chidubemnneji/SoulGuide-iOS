@@ -832,8 +832,11 @@ struct HomeView: View {
 
     var tasks: [(id: String, title: String, subtitle: String, duration: String)] {[
         ("soul-checkin", "Soul Check-In", "A personalized reflection based on your journey", "2m"),
-        ("gods-message", "God's Message", devotional?.scriptureReference ?? "Today's verse", "1m"),
-        ("devotional-prayer", "Daily Devotional & Prayer", devotional?.title ?? "Finding Peace in the Present", "5m"),
+        ("devotional-prayer", "Daily Devotional & Prayer",
+         devotional?.scriptureReference != nil
+            ? "\(devotional!.scriptureReference!) · \(devotional?.title ?? "Reflection and prayer")"
+            : "Reflection and connection with God",
+         "5m"),
         ("prayer-journal", "Reflect & Journal", "Record your thoughts and prayers", "3m"),
     ]}
 
