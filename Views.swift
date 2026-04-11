@@ -1458,6 +1458,11 @@ struct NativeChatView: View {
                     }
                     isStreaming = false
                     selectedMood = nil
+                    // Auto-title after 2nd user message
+                    let userCount = messages.filter { $0.role == "user" }.count
+                    if userCount == 2 {
+                        Task { try? await APIService.shared.requestVoid(path: "/api/conversations/\(convId)/title", method: "POST") }
+                    }
                 }
             } catch { await MainActor.run { isStreaming = false } }
         }
