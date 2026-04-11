@@ -1753,7 +1753,9 @@ struct BibleWebViewRepresentable: UIViewRepresentable {
         webView.scrollView.bounces = true
         webView.overrideUserInterfaceStyle = .unspecified
 
-        guard let url = URL(string: "https://spirit-guide-ai-production.up.railway.app/bible?nativeApp=1") else { return webView }
+        let isDark = UITraitCollection.current.userInterfaceStyle == .dark
+        let theme = isDark ? "dark" : "light"
+        guard let url = URL(string: "https://spirit-guide-ai-production.up.railway.app/bible?nativeApp=1&theme=\(theme)") else { return webView }
         webView.load(URLRequest(url: url))
         return webView
     }
@@ -2233,12 +2235,17 @@ struct SGWebView: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.scrollView.bounces = true
 
-        guard let url = URL(string: "https://spirit-guide-ai-production.up.railway.app\(path)?nativeApp=1") else { return webView }
+        let isDark = UITraitCollection.current.userInterfaceStyle == .dark
+        let theme = isDark ? "dark" : "light"
+        guard let url = URL(string: "https://spirit-guide-ai-production.up.railway.app\(path)?nativeApp=1&theme=\(theme)") else { return webView }
         webView.load(URLRequest(url: url))
         return webView
     }
 
-    func updateUIView(_ webView: WKWebView, context: Context) {}
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        let isDark = UITraitCollection.current.userInterfaceStyle == .dark
+        webView.evaluateJavaScript("document.documentElement.classList.toggle('dark', \(isDark)); document.documentElement.classList.toggle('light', \(!isDark)); document.documentElement.style.colorScheme = '\(isDark ? "dark" : "light")';")
+    }
 
     class Coordinator: NSObject, WKNavigationDelegate {
         var onNavigate: ((String) -> Void)?
