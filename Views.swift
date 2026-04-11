@@ -1578,7 +1578,7 @@ struct NativeChatView: View {
         } else {
             if let r = try? await APIService.shared.request(
                 path: "/api/conversations", method: "POST",
-                body: ["title": "New Conversation", "channel": "general"]
+                body: ["channel": "general"]
             ) as CreateConversationResponse {
                 activeConvId = r.id
             }
@@ -1616,7 +1616,11 @@ struct NativeChatView: View {
                     // Auto-title after 2nd user message
                     let userCount = messages.filter { $0.role == "user" }.count
                     if userCount == 2 {
-                        Task { try? await APIService.shared.requestVoid(path: "/api/conversations/\(convId)/title", method: "POST") }
+                        Task {
+                            try? await APIService.shared.requestVoid(path: "/api/conversations/\(convId)/title", method: "POST")
+                            // Invalidate conversations cache so list shows new title
+                            APIService.shared.invalidate("/api/conversations")
+                        }
                     }
                 }
             } catch { await MainActor.run { isStreaming = false } }
@@ -1811,6 +1815,7 @@ struct NewJournalEntryView: View {
     @State private var content = ""
     @State private var selectedMood: String? = nil
     @State private var isSaving = false
+    @State private var saveError: String? = nil
 
     var body: some View {
         NavigationStack {
@@ -1854,6 +1859,11 @@ struct NewJournalEntryView: View {
                     .disabled(content.isEmpty || isSaving)
                 }
             }
+            .alert("Couldn't save", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(saveError ?? "")
+            }
         }
     }
 
@@ -1867,10 +1877,15 @@ struct NewJournalEntryView: View {
                 let _: CreateJournalResponse = try await APIService.shared.request(
                     path: "/api/journal", method: "POST", body: body
                 )
+                // Invalidate cache so JournalView reloads
+                APIService.shared.invalidate("/api/journal")
                 await MainActor.run { dismiss() }
             } catch {
                 print("Journal save error: \(error)")
-                await MainActor.run { isSaving = false }
+                await MainActor.run {
+                    isSaving = false
+                    saveError = "Couldn't save entry. Please try again."
+                }
             }
         }
     }
