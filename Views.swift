@@ -953,7 +953,7 @@ struct MainTabView: View {
             HomeView()
                 .environmentObject(auth)
                 .tabItem { Label("Home", systemImage: "house") }.tag(0)
-            ChatListView()
+            ChatListView(selectedTab: $selectedTab)
                 .environmentObject(auth)
                 .tabItem { Label("Chat", systemImage: "plus.circle") }.tag(1)
             BibleView()
@@ -1312,6 +1312,7 @@ struct DevotionalView: View {
 // MARK: - Chat List
 struct ChatListView: View {
     @EnvironmentObject var auth: AuthViewModel
+    @Binding var selectedTab: Int
     @State private var conversations: [Conversation] = []
     @State private var showNew = false
     @State private var selected: Conversation?
@@ -1364,8 +1365,8 @@ struct ChatListView: View {
                     }
                 }
             }
-            .navigationDestination(isPresented: $showNew) { NativeChatView(conversationId: nil) }
-            .navigationDestination(item: $selected) { NativeChatView(conversationId: $0.id) }
+            .navigationDestination(isPresented: $showNew) { NativeChatView(conversationId: nil, selectedTab: $selectedTab) }
+            .navigationDestination(item: $selected) { NativeChatView(conversationId: $0.id, selectedTab: $selectedTab) }
         }
         .task { await load() }
     }
@@ -1389,6 +1390,7 @@ struct ChatListView: View {
 struct NativeChatView: View {
     let conversationId: Int?
     var openingMode: String? = nil
+    var selectedTab: Binding<Int>? = nil
     @State private var messages: [Message] = []
     @State private var input = ""
     @State private var isStreaming = false
@@ -1422,7 +1424,8 @@ struct NativeChatView: View {
                                 MessageBubble(
                                     message: msg,
                                     isPlaying: playingMessageId == msg.id,
-                                    onListen: { listenTo(msg) }
+                                    onListen: { listenTo(msg) },
+                                    onVerseTap: { _ in selectedTab?.wrappedValue = 2 }
                                 )
                             }
                             .id(msg.id)
@@ -1671,6 +1674,33 @@ struct MessageBubble: View {
     let message: Message
     var isPlaying: Bool = false
     var onListen: () -> Void = {}
+    var onVerseTap: ((String) -> Void)? = nil
+
+    // Detect Bible verse references in text
+    private func parseVerseLinks(_ text: String) -> [(String, Bool)] {
+        let pattern = #"(\d?\s?[A-Za-z]+\.?\s\d+:\d+(?:-\d+)?)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return [(text, false)]
+        }
+        let ns = text as NSString
+        let matches = regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+        if matches.isEmpty { return [(text, false)] }
+
+        var parts: [(String, Bool)] = []
+        var lastEnd = text.startIndex
+        for match in matches {
+            let range = Range(match.range, in: text)!
+            if lastEnd < range.lowerBound {
+                parts.append((String(text[lastEnd..<range.lowerBound]), false))
+            }
+            parts.append((String(text[range]), true))
+            lastEnd = range.upperBound
+        }
+        if lastEnd < text.endIndex {
+            parts.append((String(text[lastEnd...]), false))
+        }
+        return parts
+    }
 
     var body: some View {
         VStack(alignment: message.isUser ? .trailing : .leading, spacing: 4) {
@@ -1682,12 +1712,37 @@ struct MessageBubble: View {
                         Image(systemName: "flame.fill").font(.system(size: 12)).foregroundColor(Color.brand)
                     }
                 }
-                Text(message.content)
+                // Render text with tappable verse refs
+                let parts = parseVerseLinks(message.content)
+                if parts.count == 1 && !parts[0].1 {
+                    Text(message.content)
+                        .font(.system(size: 16)).lineSpacing(2)
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .background(message.isUser ? Color.brand : Color(.secondarySystemBackground))
+                        .foregroundColor(message.isUser ? .white : .primary)
+                        .cornerRadius(18)
+                } else {
+                    parts.reduce(Text("")) { result, part in
+                        if part.1 {
+                            return result + Text(part.0)
+                                .foregroundColor(Color.accent)
+                                .underline()
+                        } else {
+                            return result + Text(part.0)
+                        }
+                    }
                     .font(.system(size: 16)).lineSpacing(2)
                     .padding(.horizontal, 14).padding(.vertical, 10)
                     .background(message.isUser ? Color.brand : Color(.secondarySystemBackground))
                     .foregroundColor(message.isUser ? .white : .primary)
                     .cornerRadius(18)
+                    .onTapGesture {
+                        // Find first verse ref tapped — open Word tab
+                        if let verse = parts.first(where: { $0.1 }) {
+                            onVerseTap?(verse.0)
+                        }
+                    }
+                }
                 if !message.isUser { Spacer(minLength: 60) }
             }
             // Listen button for AI messages
